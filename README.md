@@ -17,7 +17,7 @@ A log scrapper for DCS World that checks for new carrier landing grades made by 
 
 4. Click **Create Webhook**
 
-5. Name the webhook whatever you want and give it a piicture if you'd like. 
+5. Name the webhook whatever you want and give it a picture if you'd like. 
 
 6. Copy the Webhook URL and save it for the next step.
 
@@ -26,8 +26,9 @@ A log scrapper for DCS World that checks for new carrier landing grades made by 
 
 1. Open LsoBot.ps1 and update the following variables:
 
-  $logpath = The location of your dcs.log. Defaults to $env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log
-  $hookUrl = The URL for your Discord Web Hook
+    **$logpath** = The location of your dcs.log. Defaults to $env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log
+  
+    **$hookUrl** = The URL for your Discord Web Hook
 
 2. Place LsoBot.ps1, LsoBot-Register.ps1, and LsoBot-Deregister.ps1 on the DCS World server in folder. Recommend: C:\Scripts or C:\LsoBot or something similiar in the root of C:\ or in a common scripts folder.
 
@@ -39,7 +40,7 @@ A log scrapper for DCS World that checks for new carrier landing grades made by 
 
 6. Run *.\LsoBot-Register.ps1* 
 
-   You should review a response indicating that a powershell scheduled job was created.
+   * You should review a response indicating that a powershell scheduled job was created.
 
 7. Land on the carrier and each trap should result in a message to the Discord channel with the webhook.
 
@@ -49,8 +50,6 @@ A log scrapper for DCS World that checks for new carrier landing grades made by 
 
 # Event Log Reference
 LSO BOT writes to the Windows Application log when it starts, stops, or encounters some errors:
-
-EVENT \# | Message
 
 ## Informational
 **1** - LSO Bot has started
