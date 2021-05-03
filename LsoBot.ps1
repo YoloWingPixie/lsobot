@@ -1,7 +1,7 @@
 # BEGIN USER VARIABLES
 
 $logPath = "$env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log"
-$hookUrl = "https://discord.com/api/webhooks/DONTFORGETTOADDYOURHOOKURLTHISISNOTAREALURL"
+$hookUrl = "https://discord.com/api/webhooks/NOTAREALWEBHOOKURLDONTFORGETTOUPDATE"
 
 # END USER VARIABLES
 
@@ -10,7 +10,7 @@ $timeTarget = New-TimeSpan -Seconds 60
 [DateTime]$sysTime = [DateTime]::UtcNow.ToString('HH:mm:ss')
 
 try {
-    $landingEvent = Select-String -Path $logPath -Pattern $lsoEventRegex | Select-Object
+    $landingEvent = Select-String -Path $logPath -Pattern $lsoEventRegex | Select-Object -Last 1
 }
 catch {
     Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 402 -EntryType Information -Message -join ("Could not find dcs.log at ", $logPath) -Category 1
@@ -30,11 +30,11 @@ $logTime = $logTime.split()[-1]
 $diff = New-TimeSpan -Start $trapTime -End $sysTime
 
 $Grade = $landingEvent
-$Grade = $Grade[-1] -replace "^.*(?:comment=LSO:)", ""
+$Grade = $Grade -replace "^.*(?:comment=LSO:)", ""
 $Grade = $Grade -replace ",.*$", ""
 
 $Pilot = $landingEvent
-$Pilot = $Pilot[-1] -replace "^.*(?:initiatorPilotName=)", ""
+$Pilot = $Pilot -replace "^.*(?:initiatorPilotName=)", ""
 $Pilot = $Pilot -replace ",.*$", ""
 
 if ($diff -gt $timeTarget) {
