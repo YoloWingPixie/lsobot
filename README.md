@@ -1,11 +1,11 @@
-# lsobot
-A log scrapper for DCS World that checks for new carrier landing grades made by humans and sends them to Discord. 
+# LsoBot
+A log scrapper for DCS World that checks for new carrier landing grades made by humans and sends them to Discord. LsoBot is a Powershell script that runs at regular intervals using Powershell's scheduled job function. It then formats its results and sends them to Discord via Discord's webhook API. 
 
 # Installation
 
 ## Requirements
 
-* Powershell 5.1
+* Powershell 5.1 - This is installed by default on Server 2016-2019 and Windows 10.
 * Administrative rights to register the Event Log Source, however normal operation does not require admin rights.
 * Manage Webhooks rights on the Discord server to create the webhook
 
@@ -63,6 +63,6 @@ LSO BOT writes to the Windows Application log when it starts, stops, or encounte
 
 **402** - The dcs.log could not be found. Check that the correct log path is called for.
 
-**403** - The invoke REST API method failed connecting to Discord and a network connection could not be made. Check the hook URL first, and also make sure that the Webhook actually exists in Discord.
+**403** - The invoke REST API method failed connecting to Discord and a **network connection** could not be made. Check the hook URL first, and also make sure that the Webhook actually exists in Discord.
 
 **404** - The invoke REST API method failed connecting to Discord but for some other reason than a net connection issue.
