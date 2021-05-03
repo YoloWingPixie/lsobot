@@ -11,6 +11,15 @@ By running as a scheduled job, LsoBot runs silently in the background on Windows
 * Administrative rights to register the Event Log Source, however normal operation does not require admin rights.
 * Manage Webhooks rights on the Discord server to create the webhook
 
+### A note on admin rights
+
+Specifically, the Register script needs administrator writes to run this line:
+
+          New-EventLog -LogName 'Application' -Source 'LSO Bot'
+
+All this does is allow LsoBot to write to the Windows Application log by creating a Source for it to write to. 
+
+
 ## Creating a Discord Webhook
 
 1. Select the settings gear for the channel you want LSO grades to go to.
@@ -49,6 +58,12 @@ By running as a scheduled job, LsoBot runs silently in the background on Windows
 8. If you need to stop the bot from sending messages to Discord, run *.\LsoBot-Deregister.ps1* from Powershell. 
 
 9. To start LSO Bot again, simply run *.\LsoBot-Register.ps1*. You do not need to run as administrator on subsequent runs. 
+
+# Limitations
+
+* Currently LsoBot runs every 60 seconds and only checks for the latest landing within the last 60 seconds. This means that if n+1 aircraft land within any given polling period, only the last landing will be recorded and sent to Discord. This will be updated in the future.
+
+* In theory, having a comma (,) in your display name could cause LsoBot to cut your name out of the message. 
 
 # Event Log Reference
 LSO BOT writes to the Windows Application log when it starts, stops, or encounters some errors:
