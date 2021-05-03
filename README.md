@@ -13,7 +13,7 @@ By running as a scheduled job, LsoBot runs silently in the background on Windows
 
 ### A note on admin rights
 
-Specifically, the Register script needs administrator writes to run this line:
+Specifically, the Register script needs administrator rights to run this line:
 
           New-EventLog -LogName 'Application' -Source 'LSO Bot'
 
@@ -37,9 +37,9 @@ All this does is allow LsoBot to write to the Windows Application log by creatin
 
 1. Open LsoBot.ps1 and update the following variables:
 
-    **$logpath** = The location of your dcs.log. Defaults to $env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log
+          $logpath = The location of your dcs.log. Defaults to $env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log
   
-    **$hookUrl** = The URL for your Discord webhook
+           $hookUrl = The URL for your Discord webhook
 
 2. Place LsoBot.ps1, LsoBot-Register.ps1, and LsoBot-Deregister.ps1 on the DCS World server in a folder. Recommend: C:\Scripts or C:\LsoBot or something similiar in the root of C:\ or in a common scripts folder.
 
@@ -47,23 +47,23 @@ All this does is allow LsoBot to write to the Windows Application log by creatin
 
 4. Open Powershell **as an Administrator**
 
-5. Change directory to the folder used above. e.g. *cd C:\Scripts*
+5. Change directory to the folder used above. e.g. `cd C:\Scripts`
 
-6. Run *.\LsoBot-Register.ps1* 
+6. Run `.\LsoBot-Register.ps1` 
 
    * You should receive a response indicating that a Powershell scheduled job was created.
 
 7. Land on the carrier and each trap should result in a message to the Discord channel with the webhook.
 
-8. If you need to stop the bot from sending messages to Discord, run *.\LsoBot-Deregister.ps1* from Powershell. 
+8. If you need to stop the bot from sending messages to Discord, run `.\LsoBot-Deregister.ps1` from Powershell. 
 
-9. To start LSO Bot again, simply run *.\LsoBot-Register.ps1*. You do not need to run as administrator on subsequent runs. 
+9. To start LSO Bot again, simply run `.\LsoBot-Register.ps1`. You do not need to run as administrator on subsequent runs. 
 
 # Limitations
 
 * Currently LsoBot runs every 60 seconds and only checks for the latest landing within the last 60 seconds. This means that if n+1 aircraft land within any given polling period, only the last landing will be recorded and sent to Discord. This will be updated in the future.
 
-* In theory, having a comma (,) in your display name could cause LsoBot to cut your name out of the message. 
+* In theory, having a comma (`,`) in your display name could cause LsoBot to cut your name out of the message. 
 
 # Event Log Reference
 LSO BOT writes to the Windows Application log when it starts, stops, or encounters some errors:
