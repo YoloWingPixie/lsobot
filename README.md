@@ -61,6 +61,8 @@ All this does is allow LsoBot to write to the Windows Application log by creatin
 
 # Limitations
 
+* The message displayed in Discord is different than the one the client gets on screen. This is a DCS problem, as the logged grade is different than the displayed grade.
+
 * Currently LsoBot runs every 60 seconds and only checks for the latest landing within the last 60 seconds. This means that if n+1 aircraft land within any given polling period, only the last landing will be recorded and sent to Discord. This will be updated in the future.
 
 * In theory, having a comma (`,`) in your display name could cause LsoBot to cut your name out of the message. 
