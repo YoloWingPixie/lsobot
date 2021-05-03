@@ -43,7 +43,7 @@ if ($diff -gt $timeTarget) {
 
     }
 
-    elseif (($Pilot = "System.Object[]") -or ($Grade = "System.Object[]")) {
+    elseif (($Pilot -eq "System.Object[]") -or ($Grade -eq "System.Object[]")) {
         Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 400 -EntryType Warning -Message "A landing event was detected but the pilot name or grade was malformed. Discarding pass." -Category 1
         Exit
 
