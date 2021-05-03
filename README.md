@@ -52,8 +52,11 @@ A log scrapper for DCS World that checks for new carrier landing grades made by 
 LSO BOT writes to the Windows Application log when it starts, stops, or encounters some errors:
 
 ## Informational
+
 **1** - LSO Bot has started
+
 **2** - LSO Bot has stopped
+
 **100** - A landing event was detected, was formatted correctly, and was sent to Discord successfully.
 
 ## Errors
