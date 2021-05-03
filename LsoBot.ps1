@@ -73,7 +73,7 @@ if ($diff -gt $timeTarget) {
     #Create the webhook and send it
     else {
         #Message content
-        $messageContent = -join("Pilot: ", $Pilot, " Grade: ", $Grade  )
+        $messageContent = -join("**Pilot:** ", $Pilot, " **Grade:** ", $Grade  )
 
 
         #json payload
