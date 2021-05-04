@@ -30,7 +30,7 @@ if ($landingEvent -eq $null ) {
 
 # Strip the log message down to the time that the log event occurred. 
 $logTime = $landingEvent
-#$logTime = $logTime -replace "^.*\d{4}\-\d{2}\-\d{2}.", ""
+$logTime = $logTime -replace "^.*(?:dcs\.log\:\d{5}\:)", ""
 $logTime = $logTime -replace "\..*$", ""
 #$logTime = $logTime.split()[-1]
 
