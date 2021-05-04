@@ -1,7 +1,7 @@
 # BEGIN USER VARIABLES
 
 $logPath = "$env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log"
-$hookUrl = "https://discord.com/api/webhooks/838305965459243028/XhZ-srh8YP7ZZYLjSL3yN2IXKXGhaZ4f6_Gnko9ACO61h9jcKdBxQFIXJE4oTQWBfV7I"
+$hookUrl = "https://discord.com/api/webhooks/NOTAREALWEBHOOKCHANGEME"
 
 # END USER VARIABLES
 
@@ -12,11 +12,12 @@ $lsoEventRegex = "^.*landing.quality.mark.*"
 $timeTarget = New-TimeSpan -Seconds 60
 
 #Get the system time, convert to UTC, and format to HH:mm:ss
-[DateTime]$sysTime = [DateTime]::UtcNow.ToString('HH:mm:ss')
+[DateTime]$sysTime = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH:mm:ss')
 
 #Check dcs.log for the last line that matches the landing quality mark regex.
 try {
     $landingEvent = Select-String -Path $logPath -Pattern $lsoEventRegex | Select-Object -Last 1
+
 }
 catch {
     Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 402 -EntryType Information -Message -join ("Could not find dcs.log at ", $logPath) -Category 1
@@ -29,28 +30,35 @@ if ($landingEvent -eq $null ) {
 
 # Strip the log message down to the time that the log event occurred. 
 $logTime = $landingEvent
-$logTime = $logTime -replace "^.*\d{4}\-\d{2}\-\d{2}.", ""
+#$logTime = $logTime -replace "^.*\d{4}\-\d{2}\-\d{2}.", ""
 $logTime = $logTime -replace "\..*$", ""
-$logTime = $logTime.split()[-1]
+#$logTime = $logTime.split()[-1]
 
 #Convert the log time string to a usable time object
+
 [DateTime]$trapTime = $logTime
 
 #Get the difference between the LSO event and the current time
+
 $diff = New-TimeSpan -Start $trapTime -End $sysTime
 
 #Strip the log message down to the landing grade and add escapes for _
+
 $Grade = $landingEvent
 $Grade = $Grade -replace "^.*(?:comment=LSO:)", ""
+
 $Grade = $Grade -replace ",.*$", ""
+
 $Grade = $Grade -replace "_", "\_"
 
 #Strip the log message down to the pilot name
+
 $Pilot = $landingEvent
 $Pilot = $Pilot -replace "^.*(?:initiatorPilotName=)", ""
 $Pilot = $Pilot -replace ",.*$", ""
 
 #If the difference between the system time and log event time is greater than the time target, stop. 
+
 if ($diff -gt $timeTarget) {
 
     Exit
@@ -73,12 +81,12 @@ if ($diff -gt $timeTarget) {
     #Create the webhook and send it
     else {
         #Message content
-        $messageContent = -join("**Pilot:** ", $Pilot, " **Grade:** ", $Grade  )
+        $messageConcent = -join("**Pilot: **", $Pilot, " **Grade:** ", $Grade  )
 
 
         #json payload
         $payload = [PSCustomObject]@{
-            content = $messageContent
+            content = $messageConcent
         }
         #The webhook
         try {
@@ -92,7 +100,9 @@ if ($diff -gt $timeTarget) {
         catch {
             Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 404 -EntryType Warning -Message "An unknown error occurred attempting to invoke the API request to Discord." -Category 1
 
+
         }
    
         Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 100 -EntryType Information -Message "A landing event was detected and sent successfully via Discord." -Category 1
+
 }
