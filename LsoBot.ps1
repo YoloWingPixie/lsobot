@@ -55,16 +55,20 @@ $Grade = $Grade -replace ",.*$", ""
 #>
 
 #Grade Regex
-$rGRADE =    "GRADE:\S{1,3}"
 $1WIRE =     "(?:WIRE# 1)"
-$PERFECT =  "GRADE:_OK_"
-$OK =       "GRADE:OK"
-$FAIR =     "GRADE:(OK)"
-$NOGRADE =  "GRADE:---"
-$CUT =      "GRADE:C"
-$WO =       "GRADE:WO"
-$OWO =      "GRADE:OWO"
-$WOAFU =    "WO\(AFU\)(TL|IC|AR)"
+$WIRE =     "(?:WIRE# \d{1})"
+$PERFECT =  '_OK_ (Perfect): '
+$OK =       'OK (Acceptable): '
+$FAIR =     '(OK) (Fair): '
+$NOGRADE =  '--- (No Grade): '
+$CUT =      'C (CUT): '
+$WO =       'WO (Wave Off): '
+$OWO =      'OWO (Own Wave Off): '
+$WOAFU =    "WO\(AFU\)(IC|AR|IM)"
+$WOAFUTL =  "WO\(AFU\)TL"
+$rWO =      "GRADE:WO"
+$rOWO =     "GRADE:OWO"
+$rGRADE =   "GRADE:\S{1,3}"
 
 #Grade Remarks Regex - Removals
 $SLOX = "(_|\()?(?:SLOX)(_|\))?"
@@ -106,7 +110,7 @@ $LULIC =    "(_|\()?(?:LULIC)(_|\))?"
 $LOIC =     "(_|\()?(?:LOIC)(_|\))?"
 $HIC =      "(_|\()?(?:HIC)(_|\))?"
 $FIC =      "(_|\()?(?:FIC)(_|\))?"
-$PIC =      "(_|\()?(?:PIC)(_|\))?"
+$PIC =      "(?<!PP)(_|\()?(?:PIC)(_|\))"
 $PPPIC =    "(_|\()?(?:PPPIC)(_|\))?"
 $WIC =      "(_|\()?(?:WIC)(_|\))?"
 $DRIC =     "(_|\()?(?:DRIC)(_|\))?"
@@ -143,6 +147,10 @@ $BIW =      "(_|\()?(?:BIW)(_|\))?"
 $EGTL =     "(_|\()?(?:EGTL)(_|\))?"
 
 
+#Remove this
+
+<#        ////////////////////  REMOVALS    ////////////////////     #>
+
 # Remove SLOX, EGIW, and BC from vocab
 if ($Grade -match $SLOX ) {
     $Grade = $Grade -replace $SLOX, ""
@@ -159,6 +167,8 @@ if ($Grade -match $BC) {
 
     $lockGrade = 0
 
+<#        ////////////////////  REPLACEMENTS    ////////////////////     #>
+
 #Find instances where DRX\DLX and LURX\LULX are called together, and replace with simply LURX\LULX
 if ((($Grade -match $DRX) -and ($Grade -match $LURX)) -or (($Grade -match $DLX) -and ($Grade -match $LULX))) {
     $Grade = $Grade -replace $DRX, ""
@@ -167,15 +177,82 @@ if ((($Grade -match $DRX) -and ($Grade -match $LURX)) -or (($Grade -match $DLX) 
 
 }
 
+#Find instances of _PIC_ _PPPIC_ and replace with _PPPIC_
+if (($Grade -match $PIC) -and ($Grade -match $PPPIC)) {
+    $Grade = $Grade -replace $PIC, ""
+    $Grade = $Grade -replace '\s+', ' '
+}
+
+#Find instances of DRX and DLX appearing in grade and replace with the one that appeared first. While technically possible, this is usually the LSO mistaking a late line up.
+if ($Grade -match -join($DRX, ".*", $DLX)) {
+    $Grade = $Grade -replace $DLX, ""
+    $Grade = $Grade -replace '\s+', ' '
+    
+}
+if ($Grade -match -join($DLX, ".*", $DRX)) {
+    $Grade = $Grade -replace $DRX, ""
+    $Grade = $Grade -replace '\s+', ' '
+}
+
+#Find instances of LULX and LURX in grade and replace with the one that appeared first.
+if ($Grade -match -join($LURX, ".*", $LULX)) {
+    $Grade = $Grade -replace $LULX, ""
+    $Grade = $Grade -replace '\s+', ' '
+    
+}
+if ($Grade -match -join($LULX, ".*", $LURX)) {
+    $Grade = $Grade -replace $LURX, ""
+    $Grade = $Grade -replace '\s+', ' '
+}
+
+<#        ////////////////////  GRADING    ////////////////////     #>
+
 #Check for waveoffs
-if (($Grade -match $WO) -or ($Grade -match $OWO) -or ($Grade -match $WOAFU)) {
+
+# Check for WO(AFU)TL which should be a cut pass. These somtimes don't generate WIRE #
+if ($Grade -match $WOAFUTL) {
+    $Grade = $Grade -replace $rGRADE, $CUT
+    $Grade = $Grade -replace '\s+', ' '
     $lockGrade = 1
 }
+
+# Check for a WO(AFU)(IC|AR|IM) that still resulted in WIRE # in the grade, indicating a land, which should be a cut pass.
+
+if (($Grade -match $WOAFU) -and ($Grade -match $WIRE)) {
+    $Grade = $Grade -replace $rGRADE, $CUT
+    $Grade = $Grade -replace '\s+', ' '
+    $lockGrade = 1
+}
+
+# Check for a Wave Off in the grade
+if ($Grade -match $rWO) {
+    $Grade = $Grade -replace $rGRADE, $WO
+    $Grade = $Grade -replace '\s+', ' '
+    $lockGrade = 1
+}
+
+#Check for an Own Wave Off in the grade
+if ($Grade -match $rOWO) {
+    $Grade = $Grade -replace $rGRADE, $OWO
+    $Grade = $Grade -replace '\s+', ' '
+    $lockGrade = 1
+}
+
+#Check for a WO(AFU) that did not result in a landing
+if ($Grade -match $WOAFU) {
+    $Grade = $Grade -replace $rGRADE, $WO
+    $Grade = $Grade -replace '\s+', ' '
+    $lockGrade = 1
+}
+
+
 
 # Check for automatic Cuts
 if ($lockGrade -eq 0) {
     if (($Grade -match $LLIW) -or 
-        ($Grade -match $LRIW) -or 
+        ($Grade -match $LRIW) -or
+        ($Grades -match $LULIW) -or
+        ($Grades -match $LURIW) -or 
         ($Grade -match $SLOIC) -or 
         ($Grade -match $SLOAR) -or 
         ($Grade -match $SLOIW) -or
@@ -207,12 +284,13 @@ if ($lockGrade -eq 0) {
 if ($lockGrade -eq 0) {
     if (($Grade -match $TMRDAR) -or
         ($Grade -match $TMRDIC) -or
-        ($Grade -match $3PTSIW) -or 
-        ($Grade -match $BIW) -or 
+        ($Grade -match $3PTSIW) -or  
         ($Grade -match $EGTL) -or 
         ($Grade -match $TMRDIM) -or 
         ($Grade -match $SLOIM) -or 
         ($Grade -match $PPPIC) -or 
+        ($Grade -match $PIC) -or
+        ($Grade -match $PAR) -or
         ($Grade -match $DRIC) -or 
         ($Grade -match $DLIC) -or 
         ($Grade -match $LULIC) -or 
@@ -223,7 +301,10 @@ if ($lockGrade -eq 0) {
         ($Grade -match $NERDAR) -or 
         ($Grade -match $LURAR) -or 
         ($Grade -match $LULAR) -or 
+        ($Grade -match $LOAR) -or
+        ($Grade -match $LOIW) -or
         ($Grade -match $WAR) -or 
+        ($Grade -match $1WIRE) -or
         ($Grade -match $FIW)) {
 
             $Grade = $Grade -replace $rGRADE, $NOGRADE
@@ -273,7 +354,9 @@ if ($lockGrade -eq 0) {
         ($Grade -match $LURX) -or 
         ($Grade -match $FX) -or 
         ($Grade -match $HX) -or 
+        ($Grade -match $LOX) -or
         ($Grade -match $HIM) -or 
+        ($Grade -match $LOIM) -or
         ($Grade -match $NX) -or 
         ($Grade -match $WX)) {
 
@@ -292,6 +375,10 @@ if ($Grade -match "GRADE:\S{1,4}\s*?:\s*WIRE#\s*(2|4)") {
     $Grade = $Grade -replace $rGRADE, $OK
 }
 
+# Trim :
+if ($Grade -match ":\s*:") {
+    $Grade = $Grade -replace ":\s*:", ":"
+}
 <# 
 ---------------------------------------------------------------------
                         END REGRADING
