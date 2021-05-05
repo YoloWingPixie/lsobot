@@ -49,7 +49,7 @@ All this does is allow LsoBot to write to the Windows Application log by creatin
 
 5. Run `Set-ExecutionPolicy -ExecutionPolicy Unrestricted`
 
-    * By default Windows 10 machines do not all scripts to be run at all, this command allows the current Powershell window to run unsigned Powershell scripts.
+    * By default Windows 10 machines do not all scripts to be run at all, this command allows the current Powershell window to run unsigned Powershell scripts. You can also re-save the scripts yourself on Windows Server 2016 and 2019 machines and keep the default ExecutionPolicy, as self made scripts do not need to be signed.
 
 5. Change directory to the folder used above. e.g. `cd C:\Scripts`
 
