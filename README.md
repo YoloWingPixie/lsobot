@@ -47,9 +47,9 @@ All this does is allow LsoBot to write to the Windows Application log by creatin
 
 4. Open Powershell **as an Administrator**
 
-5. Run `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process`
+5. Run `Set-ExecutionPolicy -ExecutionPolicy Unrestricted`
 
-    * By default Windows 10 machines do not all scripts to be run at all, this command allows the current Powershell window to run unsigned Powershell scripts. Once you close this Powershell window, no scripts may be ran once again.
+    * By default Windows 10 machines do not all scripts to be run at all, this command allows the current Powershell window to run unsigned Powershell scripts.
 
 5. Change directory to the folder used above. e.g. `cd C:\Scripts`
 
