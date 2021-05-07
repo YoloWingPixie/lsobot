@@ -387,7 +387,7 @@ if ($Grade -match ":\s*:") {
 
 
 $Grade = $Grade -replace '\s+', ' '
-$Grade = $Grade -replace "_", "\_"
+$Grade = $Grade -replace "_", "__"
 
 #Strip the log message down to the pilot name
 
