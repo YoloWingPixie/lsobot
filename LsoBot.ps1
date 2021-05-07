@@ -562,7 +562,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
 
 
     $Grade = $Grade -replace '\s+', ' '
-    $Grade = $Grade -replace "_", "\_"
+    $Grade = $Grade -replace "_", "__"
 
     #If the difference between the system time and log event time is greater than the time target, stop. 
 
