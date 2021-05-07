@@ -10,6 +10,8 @@
 
 # END USER VARIABLES
 
+Write-Output "$(Get-Timestamp) $logInfo LSO BOT Job Started" | Out-file C:\lsobot-debug.txt -append
+
 # BEGIN FUNCTIONS
 
 $logInfo = " | INFO | "
@@ -18,17 +20,12 @@ $logError = " | ERROR | "
 $logRegex = " | REGEX | "
 $logDiscord = " | DISCORD | "
 
-function Get-Timestamp {
-
-    return Get-Date -Format "yyyy-MM-dd HH:mm:ss:fff"
-
-}
+function Get-Timestamp {return Get-Date -Format "yyyy-MM-dd HH:mm:ss:fff"}
 
 # END FUNCTIONS
 
 #Garbage Collection
 [system.gc]::Collect()
-
 
 <# 
     $lsoStartTime : The time the job started
@@ -39,16 +36,13 @@ function Get-Timestamp {
 #>
 
     [DateTime]$lsoStartTime = [DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss.fff')
-    Write-Output "$(Get-Timestamp) $logInfo LSO BOT Job Started" | Out-file C:\lsobot-debug.txt -append
-
     $lsoJobSpan = New-TimeSpan -Seconds 60
-
     [DateTime]$lsoStopTime = $lsoStartTime + $lsoJobSpan
-
     $scanInterval = New-TimeSpan -Seconds 15
-    Write-Output "$(Get-Timestamp) $logInfo scan interval is $scanInterval" | Out-file C:\lsobot-debug.txt -append
-
     $timeTarget = $lsoJobSpan.TotalSeconds/$scanInterval.TotalSeconds
+
+ 
+    Write-Output "$(Get-Timestamp) $logInfo scan interval is $scanInterval" | Out-file C:\lsobot-debug.txt -append
     Write-Output "$(Get-Timestamp) $logInfo time target is $timeTarget" | Out-file C:\lsobot-debug.txt -append
 
 # /////////////////////////////////////////////////////////////////////
@@ -65,6 +59,7 @@ $NOGRADE =  '--- (No Grade): '
 $CUT =      'C (CUT): '
 $WO =       'WO (Wave Off): '
 $OWO =      'OWO (Own Wave Off): '
+$BOLTER =   'GRADE: B (Bolter)'
 $WOAFU =    "WO\(AFU\)(IC|AR|IM)"
 $WOAFUTL =  "WO\(AFU\)TL"
 $rWO =      "GRADE:WO"
@@ -148,8 +143,10 @@ $BIW =      "(_|\()?(?:BIW)(_|\))?"
 $EGTL =     "(_|\()?(?:EGTL)(_|\))?"
 
 # END REGRADING REGEX
+
 # The regex to check the log messages for
 $lsoEventRegex = "^.*landing.quality.mark.*"
+$takeoffEventRegex = "^.*takeoff.*$"
 
 # Main Loop starts here
 
@@ -208,6 +205,11 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     $diff = New-TimeSpan -Start $trapTime -End $lsoLoopUtcTime
     Write-Output "$(Get-Timestamp) $logInfo Time diference from the start of the loop is $diff" | Out-file C:\lsobot-debug.txt -append
 
+    #Strip the log message down to the pilot name
+
+    $Pilot = $landingEvent
+    $Pilot = $Pilot -replace "^.*(?:initiatorPilotName=)", ""
+    $Pilot = $Pilot -replace ",.*$", ""
 
     #Strip the log message down to the landing grade and add escapes for _
 
@@ -297,22 +299,75 @@ for ($i = 1; $i -le $timeTarget; $i++) {
         $lockGrade = 1
     }
 
-    # Check for a Wave Off in the grade
+    # Check for a Wave Off in the grade. If an WO is detected, get additional context from the log, look for a takeoff event from the same player that was landing.
+    #If the $Pilot has taken off from the boat within 7 secounds of the grade, presume this is a bolter.
     if ($Grade -match $rWO) {
+        $getLandingContext = Select-String -Path $logPath -Pattern $lsoEventRegex -Context 12 | Select-Object -Last 1 | Out-String
+        $getLandingContext = $getLandingContext -Split "`r`n"
+        if ($getLandingContext -match $takeoffEventRegex) {
+            $getTakeoffEventPilot = Select-String -Path $logPath -Pattern $takeoffEventRegex | Select-Object -Last 1
+            $getTakeoffEventPilot = $getTakeoffEventPilot -replace "^.*(?:takeoff,initiatorPilotName=)", ""
+            $getTakeoffEventPilot = $getTakeoffEventPilot -replace ",.*$", ""
+            $getTakeoffEventTime = Select-String -Path $logPath -Pattern $takeoffEventTimeRegex | Select-Object Matches -Last 1
+                if ($getTakeoffEventTime.Matches.Value -le $trapTime+7) {
+                        $Grade = $Grade -replace $rGRADE, $BOLTER
+                        $Grade = $Grade -replace '\s+', ' '
+                        $lockGrade = 1  
+                        }
+                
+                }
+            }
+
+    else {
         $Grade = $Grade -replace $rGRADE, $WO
         $Grade = $Grade -replace '\s+', ' '
         $lockGrade = 1
     }
 
-    #Check for an Own Wave Off in the grade
+    #Check for an Own Wave Off in the grade. If an own wave off is detected, get additional context from the log, look for a takeoff event from the same player that was landing.
+    #If the $Pilot has taken off from the boat within 7 secounds of the grade, presume this is a bolter.
     if ($Grade -match $rOWO) {
-        $Grade = $Grade -replace $rGRADE, $OWO
-        $Grade = $Grade -replace '\s+', ' '
-        $lockGrade = 1
-    }
+        $getLandingContext = Select-String -Path $logPath -Pattern $lsoEventRegex -Context 12 | Select-Object -Last 1 | Out-String
+        $getLandingContext = $getLandingContext -Split "`r`n"
+        if ($getLandingContext -match $takeoffEventRegex) {
+            $getTakeoffEventPilot = Select-String -Path $logPath -Pattern $takeoffEventRegex | Select-Object -Last 1
+            $getTakeoffEventPilot = $getTakeoffEventPilot -replace "^.*(?:takeoff,initiatorPilotName=)", ""
+            $getTakeoffEventPilot = $getTakeoffEventPilot -replace ",.*$", ""
+            $getTakeoffEventTime = Select-String -Path $logPath -Pattern $takeoffEventTimeRegex | Select-Object Matches -Last 1
+                if ($getTakeoffEventTime.Matches.Value -le $trapTime+7) {
+                        $Grade = $Grade -replace $rGRADE, $BOLTER
+                        $Grade = $Grade -replace '\s+', ' '
+                        $lockGrade = 1  
+                        }
+                
+                }
 
-    #Check for a WO(AFU) that did not result in a landing
+        }
+        else {
+            $Grade = $Grade -replace $rGRADE, $OWO
+            $Grade = $Grade -replace '\s+', ' '
+            $lockGrade = 1       
+        }
+
+    #Check for a WO(AFU) that did not result in a landing allegedly, and make sure there was no take off, in which case, make it a bolter.
     if ($Grade -match $WOAFU) {
+        $getLandingContext = Select-String -Path $logPath -Pattern $lsoEventRegex -Context 12 | Select-Object -Last 1 | Out-String
+        $getLandingContext = $getLandingContext -Split "`r`n"
+        if ($getLandingContext -match $takeoffEventRegex) {
+            $getTakeoffEventPilot = Select-String -Path $logPath -Pattern $takeoffEventRegex | Select-Object -Last 1
+            $getTakeoffEventPilot = $getTakeoffEventPilot -replace "^.*(?:takeoff,initiatorPilotName=)", ""
+            $getTakeoffEventPilot = $getTakeoffEventPilot -replace ",.*$", ""
+            $getTakeoffEventTime = Select-String -Path $logPath -Pattern $takeoffEventTimeRegex | Select-Object Matches -Last 1
+                if ($getTakeoffEventTime.Matches.Value -le $trapTime+7) {
+                        $Grade = $Grade -replace $rGRADE, $BOLTER
+                        $Grade = $Grade -replace '\s+', ' '
+                        $lockGrade = 1  
+                        }
+                
+                }
+
+    }
+    else {
         $Grade = $Grade -replace $rGRADE, $WO
         $Grade = $Grade -replace '\s+', ' '
         $lockGrade = 1
@@ -461,12 +516,6 @@ for ($i = 1; $i -le $timeTarget; $i++) {
 
     $Grade = $Grade -replace '\s+', ' '
     $Grade = $Grade -replace "_", "\_"
-
-    #Strip the log message down to the pilot name
-
-    $Pilot = $landingEvent
-    $Pilot = $Pilot -replace "^.*(?:initiatorPilotName=)", ""
-    $Pilot = $Pilot -replace ",.*$", ""
 
     #If the difference between the system time and log event time is greater than the time target, stop. 
 
