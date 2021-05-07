@@ -10,6 +10,20 @@
 
 # END USER VARIABLES
 
+# BEGIN FUNCTIONS
+
+$logInfo = " | INFO | "
+$logWarning = " | WARNING | "
+$logError = " | ERROR | "
+
+function Get-Timestamp {
+
+    return Get-Date -Format "yyyy-MM-dd HH:mm:ss:fff"
+
+}
+
+# END FUNCTIONS
+
 #Garbage Collection
 [system.gc]::Collect()
 
@@ -22,18 +36,18 @@
     $timeTarget : This is the integer that will be fed to the for loop to exit the loop once the job has reached $lsoStopTime
 #>
 
-    [DateTime]$lsoStartTime = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH:mm:ss:fff')
-
-    #Debug
-    Write-Output "$lsoStartTime - LSO BOT Job Started" | Out-file C:\lsobot-debug.txt -append
+    [DateTime]$lsoStartTime = [DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss.fff')
+    Write-Output "$(Get-Timestamp) $logInfo LSO BOT Job Started" | Out-file C:\lsobot-debug.txt -append
 
     $lsoJobSpan = New-TimeSpan -Seconds 60
 
     [DateTime]$lsoStopTime = $lsoStartTime + $lsoJobSpan
 
     $scanInterval = New-TimeSpan -Seconds 15
+    Write-Output "$(Get-Timestamp) $logInfo scan interval is $scanInterval" | Out-file C:\lsobot-debug.txt -append
 
     $timeTarget = $lsoJobSpan.TotalSeconds/$scanInterval.TotalSeconds
+    Write-Output "$(Get-Timestamp) $logInfo time target is $timeTarget" | Out-file C:\lsobot-debug.txt -append
 
 # /////////////////////////////////////////////////////////////////////
 
@@ -137,15 +151,19 @@ $lsoEventRegex = "^.*landing.quality.mark.*"
 
 # Main Loop starts here
 
-for ($i = 1; $i -lt $timeTarget ; $i++) {
+for ($i = 0; $i -lt $timeTarget; $i++) {
     
+    Write-Output "$(Get-Timestamp) $logInfo Begin cycle $i of $timeTarget" | Out-file C:\lsobot-debug.txt -append
     #Get the system time, convert to UTC, and format to HH:mm:ss. We need this for the DCS log.
-    [DateTime]$lsoLoopStartSysTime = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH:mm:ss.fff')
+    [DateTime]$lsoLoopUtcTime = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH:mm:ss.fff')
+
+    #Get the system time in localized time for Loop duration tracking.
+    [DateTime]$lsoLoopStartSysTime = [DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss.fff')
 
     #Has the job run it's course? If so, stop.
     if ($lsoLoopStartSysTime -ge $lsoStopTime ) {
 
-        Write-Output "$lsoLoopEndSysTime - LSO BOT Job Ending" | Out-file C:\lsobot-debug.txt -append
+        Write-Output "$(Get-Timestamp) $logInfo LSO BOT Job Ending" | Out-file C:\lsobot-debug.txt -append
         Exit
 
     }
@@ -165,6 +183,7 @@ for ($i = 1; $i -lt $timeTarget ; $i++) {
 
     if ($landingEvent -eq $null ) {
 
+        Write-Output "$(Get-Timestamp) $logInfo No landing event detected" | Out-file C:\lsobot-debug.txt -append
         #Do Nothing
     }
 
@@ -175,6 +194,7 @@ for ($i = 1; $i -lt $timeTarget ; $i++) {
     $logTime = $logTime -replace "^.*(?:dcs\.log\:\d{1,5}\:)", ""
     $logTime = $logTime -replace "\..*$", ""
     #$logTime = $logTime.split()[-1]
+    Write-Output "$(Get-Timestamp) $logInfo Trap detected at $logTime" | Out-file C:\lsobot-debug.txt -append
 
     #Convert the log time string to a usable time object
 
@@ -182,7 +202,7 @@ for ($i = 1; $i -lt $timeTarget ; $i++) {
 
     #Get the difference between the LSO event and the current time
 
-    $diff = New-TimeSpan -Start $trapTime -End $lsoLoopStartSysTime
+    $diff = New-TimeSpan -Start $trapTime -End $lsoLoopUtcTime
 
     #Strip the log message down to the landing grade and add escapes for _
 
@@ -501,9 +521,9 @@ for ($i = 1; $i -lt $timeTarget ; $i++) {
     $lsoSleepTime = ($scanInterval.TotalMilliseconds - $lsoLoopDuration.TotalMilliseconds)
 
     #Debug Script
-    Write-Output "$lsoLoopEndSysTime - LSO BOT Ran" | Out-file C:\lsobot-debug.txt -append
+    Write-Output "$(Get-Timestamp) $logInfo LSO BOT Cycle Ran. Sleeping for $lsoSleepTime milliseconds" | Out-file C:\lsobot-debug.txt -append
 
-    Sleep -Milliseconds $lsoSleepTime
+    Start-Sleep -Milliseconds $lsoSleepTime
 }
 
 #Garbage Collection
