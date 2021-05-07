@@ -7,63 +7,7 @@ By running as a scheduled job, LSO BOT runs silently in the background on Window
 
 # Installation
 
-## Requirements
-
-* Powershell 5.1 - This is installed by default on Server 2016-2019 and Windows 10.
-* Administrative rights to register the Event Log Source, however normal operation does not require admin rights.
-* Manage Webhooks rights on the Discord server to create the webhook
-
-### A note on admin rights
-
-Specifically, the Register script needs administrator rights to run this line:
-
-          New-EventLog -LogName 'Application' -Source 'LSO Bot'
-
-All this does is allow LSO BOT to write to the Windows Application log by creating a Source for it to write to. 
-
-
-## Creating a Discord Webhook
-
-1. Select the settings gear for the channel you want LSO grades to go to.
-
-2. Select Integrations
-
-4. Click **Create Webhook**
-
-5. Name the webhook whatever you want and give it a picture if you'd like. 
-
-6. Copy the Webhook URL and save it for the next step.
-
-
-## Setup LSO Bot
-
-1. Open LSO BOT.ps1 and update the following variables:
-
-          $logpath = The location of your dcs.log. Defaults to $env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log
-  
-           $hookUrl = The URL for your Discord webhook
-
-2. Place LsoBot.ps1, LsoBot-Register.ps1, and LsoBot-Deregister.ps1 on the DCS World server in a folder. Recommend: C:\Scripts or C:\LsoBot or something similiar in the root of C:\ or in a common scripts folder.
-
-3. Open LsoBot-Register.ps1 and update $filePath to the location of LsoBot.ps1. Defaults to C:\Scripts\LsoBot.ps1
-
-4. Open Powershell **as an Administrator**
-
-5. Run `Set-ExecutionPolicy -ExecutionPolicy Unrestricted`
-
-    * By default Windows 10 machines do not all scripts to be run at all, this command allows the current Powershell window to run unsigned Powershell scripts. You can also re-save the scripts yourself on Windows Server 2016 and 2019 machines and keep the default ExecutionPolicy, as self made scripts do not need to be signed.
-
-5. Change directory to the folder used above. e.g. `cd C:\Scripts`
-
-6. Run `.\LsoBot-Register.ps1` 
-
-   * You should receive a response indicating that a Powershell scheduled job was created.
-
-7. Land on the carrier and each trap should result in a message to the Discord channel with the webhook.
-
-8. If you need to stop the bot from sending messages to Discord, run `.\LsoBot-Deregister.ps1` from Powershell. 
-
-9. To start LSO Bot again, simply run `.\LsoBot-Register.ps1`. You do not need to run as administrator on subsequent runs. 
+Review the [Installation](https://github.com/YoloWingPixie/lsobot/wiki/Installation-Guide) procedure in the wiki.
 
 # Limitations
 
