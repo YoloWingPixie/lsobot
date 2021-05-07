@@ -12,7 +12,7 @@
 
 #Garbage Collection
 [system.gc]::Collect()
-Write-Output "$lsoLoopEndSysTime - LSO BOT Job Started" | Out-file C:\lsobot-debug.txt -append
+
 
 <# 
     $lsoStartTime : The time the job started
@@ -23,6 +23,9 @@ Write-Output "$lsoLoopEndSysTime - LSO BOT Job Started" | Out-file C:\lsobot-deb
 #>
 
     [DateTime]$lsoStartTime = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH:mm:ss:fff')
+
+    #Debug
+    Write-Output "$lsoStartTime - LSO BOT Job Started" | Out-file C:\lsobot-debug.txt -append
 
     $lsoJobSpan = New-TimeSpan -Seconds 60
 
@@ -158,12 +161,15 @@ for ($i = 1; $i -lt $timeTarget ; $i++) {
         Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 402 -EntryType Information -Message -join ("Could not find dcs.log at ", $logPath) -Category 1
     }   
 
-    #If dcs.log did not contain any lines that matched the LSO regex, stop.
+    #If dcs.log did not contain any lines that matched the LSO regex, stop, otherwise continue
+
     if ($landingEvent -eq $null ) {
 
-        Exit
+        #Do Nothing
     }
 
+    else {
+        
     # Strip the log message down to the time that the log event occurred. 
     $logTime = $landingEvent
     $logTime = $logTime -replace "^.*(?:dcs\.log\:\d{1,5}\:)", ""
@@ -447,15 +453,16 @@ for ($i = 1; $i -lt $timeTarget ; $i++) {
 
         #If the $Pilot or $Grade somehow turned up $null or blank, stop
         elseif (($Pilot -eq "System.Object[]") -or ($Grade -eq "System.Object[]")) {
+
             Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 400 -EntryType Warning -Message "A landing event was detected but the pilot name or grade was malformed. Discarding pass." -Category 1
-            Exit
+
 
         }
 
         #If the $Pilot or $Grade has a date in the format of ####-##-##, stop. This will happen when AI land as the regex doesn't work correctly without a pilot field in the log event.
         elseif (($Pilot -match "^.*\d{4}\-\d{2}\-\d{2}.*$") -or ($Grade -match "^.*\d{4}\-\d{2}\-\d{2}.*$")) {
+
             Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 401 -EntryType Warning -Message "A landing event was detected but the name or grade contained a date in the format of 2020-01-01 after processing. This indicates that the pass was performed by an AI or the log message was malformed. Discarding pass." -Category 1
-            Exit
 
         }
         #Create the webhook and send it
@@ -486,6 +493,7 @@ for ($i = 1; $i -lt $timeTarget ; $i++) {
             Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 100 -EntryType Information -Message "A landing event was detected and sent successfully via Discord." -Category 1
 
         }
+    }
 
     #Get the run duration of the loop, and convert to the amount of milliseconds the loop should sleep for which is the scan interval minus the run duration
     $lsoLoopEndSysTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
