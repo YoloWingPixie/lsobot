@@ -1,11 +1,11 @@
+[LSO BOT on Discord](https://discord.gg/nr9xb6YJfw)
+
 ![LSO BOT](https://i.imgur.com/Sdd379E.png)
 
  LSO BOT
 A log scrapper for DCS World that checks for new carrier landing grades made by humans and sends them to Discord. LSO BOT is a Powershell script that runs at regular intervals using Powershell's scheduled job function. It then formats its results and sends them to Discord via Discord's webhook API. 
 
 By running as a scheduled job, LSO BOT runs silently in the background on Windows and it will persist between reboots. It has no dependencies that do not already ship with modern versions of Windows. 
-
-[LSO BOT on Discord](https://discord.gg/nr9xb6YJfw)
 
 # Installation
 
