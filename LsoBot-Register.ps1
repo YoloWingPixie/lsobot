@@ -1,29 +1,26 @@
 ## BEGIN USER VARIABLES
 
-$filePath = ".\LsoBot.ps1"
+$lsoBotfilePath = ".\LsoBot.ps1"
 
 ## END USER VARIABLES
 
-# Check if LSO Bot is already a valid Application log source, and if not, create it. New-EventLog requires Administrator rights to run. This loop only needs to run once per system.
-if ([System.Diagnostics.EventLog]::SourceExists("LSO Bot") -eq $False) {
-    New-EventLog -LogName 'Application' -Source 'LSO Bot'
-} 
+$lsoJobStart = Get-Date
 
-$start = Get-Date
+function Get-Timestamp {return Get-Date -Format "yyyy-MM-dd HH:mm:ss:fff"}
 
 # Queue jobs if current instance is running late
 $O = New-ScheduledJobOption -MultipleInstancePolicy Queue
 
 # Start the job immediately, repeate every minute, for 10 years.This wil persist past reboot.
-$T = New-JobTrigger -Once -At $start -RepetitionInterval (New-TimeSpan -Seconds 60) -RepetitionDuration (New-Timespan -Days 3650)
+$T = New-JobTrigger -Once -At $lsoJobStart -RepetitionInterval (New-TimeSpan -Seconds 60) -RepetitionDuration (New-Timespan -Days 3650)
 
 # Create scheduled job
 try {
-    Register-ScheduledJob -Name "LSO Check" -FilePath $filePath -ScheduledJobOption $O -Trigger $T
+    Register-ScheduledJob -Name "LSO Check" -FilePath $lsoBotfilePath -ScheduledJobOption $O -Trigger $T
 }
 catch {
-    Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 3 -EntryType Error -Message "The Powershell scheduled job could not be created." -Category 1
+    Write-Output "$(Get-Timestamp) | ERROR | The Powershell Scheduled Job failed to be created." | Out-file C:\lsobot-debug.txt -append
 }
 
-Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 1 -EntryType Information -Message "LSO Bot has started" -Category 1
+Write-Output "$(Get-Timestamp) | INFO | The Powershell Scheduled Job has been started successfully." | Out-file C:\lsobot-debug.txt -append
 Write-Host "LSO Bot Powershell Scheduled Job Created" -ForegroundColor Green

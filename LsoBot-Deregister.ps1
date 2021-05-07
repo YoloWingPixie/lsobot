@@ -1,2 +1,4 @@
 Unregister-ScheduledJob -Name "LSO Check"
-Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 2 -EntryType Information -Message "LSO Bot has stopped" -Category 1
+function Get-Timestamp {return Get-Date -Format "yyyy-MM-dd HH:mm:ss:fff"}
+
+Write-Output "$(Get-Timestamp) | WARNING | The Powershell Scheduled Job has been deregistered" | Out-file C:\lsobot-debug.txt -append
