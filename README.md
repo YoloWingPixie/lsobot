@@ -1,7 +1,9 @@
-# LsoBot
-A log scrapper for DCS World that checks for new carrier landing grades made by humans and sends them to Discord. LsoBot is a Powershell script that runs at regular intervals using Powershell's scheduled job function. It then formats its results and sends them to Discord via Discord's webhook API. 
+# LSO BOT
+A log scrapper for DCS World that checks for new carrier landing grades made by humans and sends them to Discord. LSO BOT is a Powershell script that runs at regular intervals using Powershell's scheduled job function. It then formats its results and sends them to Discord via Discord's webhook API. 
 
-By running as a scheduled job, LsoBot runs silently in the background on Windows and it will persist between reboots. It has no dependencies that do not already ship with modern versions of Windows. 
+By running as a scheduled job, LSO BOT runs silently in the background on Windows and it will persist between reboots. It has no dependencies that do not already ship with modern versions of Windows. 
+
+[LSO BOT on Discord](https://discord.gg/nr9xb6YJfw)
 
 # Installation
 
@@ -17,7 +19,7 @@ Specifically, the Register script needs administrator rights to run this line:
 
           New-EventLog -LogName 'Application' -Source 'LSO Bot'
 
-All this does is allow LsoBot to write to the Windows Application log by creating a Source for it to write to. 
+All this does is allow LSO BOT to write to the Windows Application log by creating a Source for it to write to. 
 
 
 ## Creating a Discord Webhook
@@ -35,7 +37,7 @@ All this does is allow LsoBot to write to the Windows Application log by creatin
 
 ## Setup LSO Bot
 
-1. Open LsoBot.ps1 and update the following variables:
+1. Open LSO BOT.ps1 and update the following variables:
 
           $logpath = The location of your dcs.log. Defaults to $env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log
   
@@ -67,7 +69,7 @@ All this does is allow LsoBot to write to the Windows Application log by creatin
 
 * The message displayed in Discord is different than the one the client gets on screen. This is a DCS problem, as the logged grade is different than the displayed grade.
 
-* Currently LsoBot runs every 60 seconds and only checks for the latest landing within the last 60 seconds. This means that if n+1 aircraft land within any given polling period, only the last landing will be recorded and sent to Discord. This will be updated in the future.
+* Currently LSO BOT runs every 60 seconds and only checks for the latest landing within the last 60 seconds. This means that if n+1 aircraft land within any given polling period, only the last landing will be recorded and sent to Discord. This will be updated in the future.
 
 * In theory, having a comma (`,`) in your display name could cause LsoBot to cut your name out of the message. 
 
