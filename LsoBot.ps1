@@ -15,6 +15,8 @@
 $logInfo = " | INFO | "
 $logWarning = " | WARNING | "
 $logError = " | ERROR | "
+$logRegex = " | REGEX | "
+$logDiscord = " | DISCORD | "
 
 function Get-Timestamp {
 
@@ -151,7 +153,7 @@ $lsoEventRegex = "^.*landing.quality.mark.*"
 
 # Main Loop starts here
 
-for ($i = 0; $i -lt $timeTarget; $i++) {
+for ($i = 1; $i -le $timeTarget; $i++) {
     
     Write-Output "$(Get-Timestamp) $logInfo Begin cycle $i of $timeTarget" | Out-file C:\lsobot-debug.txt -append
     #Get the system time, convert to UTC, and format to HH:mm:ss. We need this for the DCS log.
@@ -176,7 +178,8 @@ for ($i = 0; $i -lt $timeTarget; $i++) {
     }
     catch {
 
-        Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 402 -EntryType Information -Message -join ("Could not find dcs.log at ", $logPath) -Category 1
+        Write-Output "$(Get-Timestamp) $logError Could not find dcs.log at $logpath. Please check the file path configured in LsoBot.ps1." | Out-file C:\lsobot-debug.txt -append
+
     }   
 
     #If dcs.log did not contain any lines that matched the LSO regex, stop, otherwise continue
@@ -194,7 +197,7 @@ for ($i = 0; $i -lt $timeTarget; $i++) {
     $logTime = $logTime -replace "^.*(?:dcs\.log\:\d{1,5}\:)", ""
     $logTime = $logTime -replace "\..*$", ""
     #$logTime = $logTime.split()[-1]
-    Write-Output "$(Get-Timestamp) $logInfo Trap detected at $logTime" | Out-file C:\lsobot-debug.txt -append
+    Write-Output "$(Get-Timestamp) $logInfo Trap detected at $logTime UTC" | Out-file C:\lsobot-debug.txt -append
 
     #Convert the log time string to a usable time object
 
@@ -203,6 +206,8 @@ for ($i = 0; $i -lt $timeTarget; $i++) {
     #Get the difference between the LSO event and the current time
 
     $diff = New-TimeSpan -Start $trapTime -End $lsoLoopUtcTime
+    Write-Output "$(Get-Timestamp) $logInfo Time diference from the start of the loop is $diff" | Out-file C:\lsobot-debug.txt -append
+
 
     #Strip the log message down to the landing grade and add escapes for _
 
@@ -467,6 +472,7 @@ for ($i = 0; $i -lt $timeTarget; $i++) {
 
     if ($diff -gt $scanInterval) {
 
+        Write-Output "$(Get-Timestamp) $logWarning Trap detected at $logTime is too old. Discarding." | Out-file C:\lsobot-debug.txt -append
             # Do Nothing
 
         }
@@ -474,8 +480,7 @@ for ($i = 0; $i -lt $timeTarget; $i++) {
         #If the $Pilot or $Grade somehow turned up $null or blank, stop
         elseif (($Pilot -eq "System.Object[]") -or ($Grade -eq "System.Object[]")) {
 
-            Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 400 -EntryType Warning -Message "A landing event was detected but the pilot name or grade was malformed. Discarding pass." -Category 1
-
+            Write-Output "$(Get-Timestamp) $logError Trap detected at $logTime is malformed. Something went wrong with the regex steps." | Out-file C:\lsobot-debug.txt -append
 
         }
 
@@ -483,7 +488,7 @@ for ($i = 0; $i -lt $timeTarget; $i++) {
         elseif (($Pilot -match "^.*\d{4}\-\d{2}\-\d{2}.*$") -or ($Grade -match "^.*\d{4}\-\d{2}\-\d{2}.*$")) {
 
             Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 401 -EntryType Warning -Message "A landing event was detected but the name or grade contained a date in the format of 2020-01-01 after processing. This indicates that the pass was performed by an AI or the log message was malformed. Discarding pass." -Category 1
-
+            Write-Output "$(Get-Timestamp) $logWarning Trap detected at $logTime contained a date in the pilot name. This indicates that Regex failed because the initiatorPilot field was missing in the landing event, likely AI landing." | Out-file C:\lsobot-debug.txt -append
         }
         #Create the webhook and send it
         else {
@@ -498,20 +503,20 @@ for ($i = 0; $i -lt $timeTarget; $i++) {
             #The webhook
             try {
                 Invoke-RestMethod -Uri $hookUrl -Method Post -Body ($payload | ConvertTo-Json) -ContentType 'application/json'  
+                Write-Output "$(Get-Timestamp) $logInfo $logDiscord A landing event was detected and sent successfully via Discord." | Out-file C:\lsobot-debug.txt -append
             }
             #If the error was specifically a network exception or IO exception, write friendly log message
             catch [System.Net.WebException],[System.IO.IOException] {
-                Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 403 -EntryType Warning -Message "Failed to establish connection to Discord webhook. Please check that the webhook URL is correct, and activated in Discord." -Category 1 -RawData $hookUrl
+                Write-Output "$(Get-Timestamp) $logError $logDiscord Failed to establish connection to Discord webhook. Please check that the webhook URL is correct, and activated in Discord." | Out-file C:\lsobot-debug.txt -append
             
             }
             catch {
-                Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 404 -EntryType Warning -Message "An unknown error occurred attempting to invoke the API request to Discord." -Category 1
-
-
+                Write-Output "$(Get-Timestamp) $logError $logDiscord An unknown error occurred attempting to invoke the API request to Discord." | Out-file C:\lsobot-debug.txt -append
+ 
             }
     
-            Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 100 -EntryType Information -Message "A landing event was detected and sent successfully via Discord." -Category 1
 
+            
         }
     }
 
