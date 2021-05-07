@@ -1,58 +1,40 @@
 # BEGIN USER VARIABLES
 
-$logPath = "$env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log"
-$hookUrl = "https://discord.com/api/webhooks/NOTAREALWEBHOOKCHANGEME"
+<# 
+    $logPath = The location of your dcs.log. The default should be correct for most server installs as long as you are running under the correct user.
+    $hookURL = The webhook URL for Discord
+#>
+
+    $logPath = "$env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log"
+    $hookUrl = "https://discord.com/api/webhooks/NOTAREALWEBHOOKCHANGEME"
 
 # END USER VARIABLES
 
-# The regex to check the log messages for
-$lsoEventRegex = "^.*landing.quality.mark.*"
-
-#The number of seconds that a landing quality mark should've arrived in. Anything older than this amount is discounted as a duplicate.
-$timeTarget = New-TimeSpan -Seconds 60
-
-#Get the system time, convert to UTC, and format to HH:mm:ss
-[DateTime]$sysTime = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH:mm:ss')
-
-#Check dcs.log for the last line that matches the landing quality mark regex.
-try {
-    $landingEvent = Select-String -Path $logPath -Pattern $lsoEventRegex | Select-Object -Last 1
-
-}
-catch {
-    Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 402 -EntryType Information -Message -join ("Could not find dcs.log at ", $logPath) -Category 1
-}
-
-#If dcs.log did not contain any lines that matched the LSO regex, stop.
-if ($landingEvent -eq $null ) {
-    Exit
-}
-
-# Strip the log message down to the time that the log event occurred. 
-$logTime = $landingEvent
-$logTime = $logTime -replace "^.*(?:dcs\.log\:\d{1,5}\:)", ""
-$logTime = $logTime -replace "\..*$", ""
-#$logTime = $logTime.split()[-1]
-
-#Convert the log time string to a usable time object
-
-[DateTime]$trapTime = $logTime
-
-#Get the difference between the LSO event and the current time
-
-$diff = New-TimeSpan -Start $trapTime -End $sysTime
-
-#Strip the log message down to the landing grade and add escapes for _
-
-$Grade = $landingEvent
-$Grade = $Grade -replace "^.*(?:comment=LSO:)", ""
-$Grade = $Grade -replace ",.*$", ""
+#Garbage Collection
+[system.gc]::Collect()
+Write-Output "$lsoLoopEndSysTime - LSO BOT Job Started" | Out-file C:\lsobot-debug.txt -append
 
 <# 
----------------------------------------------------------------------
-                        BEGIN REGRADING
----------------------------------------------------------------------
+    $lsoStartTime : The time the job started
+    $lsoJobSpan : The time the job should run for, which should equal the repetition interval of the scheudled job trigger
+    $lsoStopTime : The time the job should stop which is $lsoStartTime + $lsoJobSpan
+    $scanInterval : The amount of seconds between each scan interval within a job. This is effectively a sleep timer.
+    $timeTarget : This is the integer that will be fed to the for loop to exit the loop once the job has reached $lsoStopTime
 #>
+
+    [DateTime]$lsoStartTime = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH:mm:ss:fff')
+
+    $lsoJobSpan = New-TimeSpan -Seconds 60
+
+    [DateTime]$lsoStopTime = $lsoStartTime + $lsoJobSpan
+
+    $scanInterval = New-TimeSpan -Seconds 15
+
+    $timeTarget = $lsoJobSpan.TotalSeconds/$scanInterval.TotalSeconds
+
+# /////////////////////////////////////////////////////////////////////
+
+# BEGIN REGRADING REGEX
 
 #Grade Regex
 $1WIRE =     "(?:WIRE# 1)"
@@ -146,301 +128,375 @@ $3PTSIW =   "(_|\()?(?:3PTSIW)(_|\))?"
 $BIW =      "(_|\()?(?:BIW)(_|\))?"
 $EGTL =     "(_|\()?(?:EGTL)(_|\))?"
 
+# END REGRADING REGEX
+# The regex to check the log messages for
+$lsoEventRegex = "^.*landing.quality.mark.*"
 
-#Remove this
+# Main Loop starts here
 
-<#        ////////////////////  REMOVALS    ////////////////////     #>
-
-# Remove SLOX, EGIW, and BC from vocab
-if ($Grade -match $SLOX ) {
-    $Grade = $Grade -replace $SLOX, ""
-    $Grade = $Grade -replace '\s+', ' '
-    }
-if ($Grade -match $EGIW) {
-    $Grade = $Grade -replace $EGIW, ""
-    $Grade = $Grade -replace '\s+', ' '
-    }
-if ($Grade -match $BC) {
-    $Grade = $Grade -replace $BC, ""
-    $Grade = $Grade -replace '\s+', ' '
-    }
-
-    $lockGrade = 0
-
-<#        ////////////////////  REPLACEMENTS    ////////////////////     #>
-
-#Find instances where DRX\DLX and LURX\LULX are called together, and replace with simply LURX\LULX
-if ((($Grade -match $DRX) -and ($Grade -match $LURX)) -or (($Grade -match $DLX) -and ($Grade -match $LULX))) {
-    $Grade = $Grade -replace $DRX, ""
-    $Grade = $Grade -replace $DLX, ""
-    $Grade = $Grade -replace '\s+', ' '
-
-}
-
-#Find instances of _PIC_ _PPPIC_ and replace with _PPPIC_
-if (($Grade -match $PIC) -and ($Grade -match $PPPIC)) {
-    $Grade = $Grade -replace $PIC, ""
-    $Grade = $Grade -replace '\s+', ' '
-}
-
-#Find instances of DRX and DLX appearing in grade and replace with the one that appeared first. While technically possible, this is usually the LSO mistaking a late line up.
-if ($Grade -match -join($DRX, ".*", $DLX)) {
-    $Grade = $Grade -replace $DLX, ""
-    $Grade = $Grade -replace '\s+', ' '
+for ($i = 1; $i -lt $timeTarget ; $i++) {
     
-}
-if ($Grade -match -join($DLX, ".*", $DRX)) {
-    $Grade = $Grade -replace $DRX, ""
-    $Grade = $Grade -replace '\s+', ' '
-}
+    #Get the system time, convert to UTC, and format to HH:mm:ss. We need this for the DCS log.
+    [DateTime]$lsoLoopStartSysTime = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH:mm:ss.fff')
 
-#Find instances of LULX and LURX in grade and replace with the one that appeared first.
-if ($Grade -match -join($LURX, ".*", $LULX)) {
-    $Grade = $Grade -replace $LULX, ""
-    $Grade = $Grade -replace '\s+', ' '
-    
-}
-if ($Grade -match -join($LULX, ".*", $LURX)) {
-    $Grade = $Grade -replace $LURX, ""
-    $Grade = $Grade -replace '\s+', ' '
-}
+    #Has the job run it's course? If so, stop.
+    if ($lsoLoopStartSysTime -ge $lsoStopTime ) {
 
-<#        ////////////////////  GRADING    ////////////////////     #>
+        Write-Output "$lsoLoopEndSysTime - LSO BOT Job Ending" | Out-file C:\lsobot-debug.txt -append
+        Exit
 
-#Check for waveoffs
+    }
 
-# Check for WO(AFU)TL which should be a cut pass. These somtimes don't generate WIRE #
-if ($Grade -match $WOAFUTL) {
-    $Grade = $Grade -replace $rGRADE, $CUT
-    $Grade = $Grade -replace '\s+', ' '
-    $lockGrade = 1
-}
+    #Check dcs.log for the last line that matches the landing quality mark regex.
+    try {
 
-# Check for a WO(AFU)(IC|AR|IM) that still resulted in WIRE # in the grade, indicating a land, which should be a cut pass.
+        $landingEvent = Select-String -Path $logPath -Pattern $lsoEventRegex | Select-Object -Last 1
 
-if (($Grade -match $WOAFU) -and ($Grade -match $WIRE)) {
-    $Grade = $Grade -replace $rGRADE, $CUT
-    $Grade = $Grade -replace '\s+', ' '
-    $lockGrade = 1
-}
+    }
+    catch {
 
-# Check for a Wave Off in the grade
-if ($Grade -match $rWO) {
-    $Grade = $Grade -replace $rGRADE, $WO
-    $Grade = $Grade -replace '\s+', ' '
-    $lockGrade = 1
-}
+        Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 402 -EntryType Information -Message -join ("Could not find dcs.log at ", $logPath) -Category 1
+    }   
 
-#Check for an Own Wave Off in the grade
-if ($Grade -match $rOWO) {
-    $Grade = $Grade -replace $rGRADE, $OWO
-    $Grade = $Grade -replace '\s+', ' '
-    $lockGrade = 1
-}
+    #If dcs.log did not contain any lines that matched the LSO regex, stop.
+    if ($landingEvent -eq $null ) {
 
-#Check for a WO(AFU) that did not result in a landing
-if ($Grade -match $WOAFU) {
-    $Grade = $Grade -replace $rGRADE, $WO
-    $Grade = $Grade -replace '\s+', ' '
-    $lockGrade = 1
-}
+        Exit
+    }
+
+    # Strip the log message down to the time that the log event occurred. 
+    $logTime = $landingEvent
+    $logTime = $logTime -replace "^.*(?:dcs\.log\:\d{1,5}\:)", ""
+    $logTime = $logTime -replace "\..*$", ""
+    #$logTime = $logTime.split()[-1]
+
+    #Convert the log time string to a usable time object
+
+    [DateTime]$trapTime = $logTime
+
+    #Get the difference between the LSO event and the current time
+
+    $diff = New-TimeSpan -Start $trapTime -End $lsoLoopStartSysTime
+
+    #Strip the log message down to the landing grade and add escapes for _
+
+    $Grade = $landingEvent
+    $Grade = $Grade -replace "^.*(?:comment=LSO:)", ""
+    $Grade = $Grade -replace ",.*$", ""
+
+    <# 
+    ---------------------------------------------------------------------
+                            BEGIN REGRADING
+    ---------------------------------------------------------------------
+    #>
 
 
+    <#        ////////////////////  REMOVALS    ////////////////////     #>
 
-# Check for automatic Cuts
-if ($lockGrade -eq 0) {
-    if (($Grade -match $LLIW) -or 
-        ($Grade -match $LRIW) -or
-        ($Grades -match $LULIW) -or
-        ($Grades -match $LURIW) -or 
-        ($Grade -match $SLOIC) -or 
-        ($Grade -match $SLOAR) -or 
-        ($Grade -match $SLOIW) -or
-        ($Grade -match $PPPIC)) {
+    # Remove SLOX, EGIW, and BC from vocab
+    if ($Grade -match $SLOX ) {
+        $Grade = $Grade -replace $SLOX, ""
+        $Grade = $Grade -replace '\s+', ' '
+        }
+    if ($Grade -match $EGIW) {
+        $Grade = $Grade -replace $EGIW, ""
+        $Grade = $Grade -replace '\s+', ' '
+        }
+    if ($Grade -match $BC) {
+        $Grade = $Grade -replace $BC, ""
+        $Grade = $Grade -replace '\s+', ' '
+        }
 
+        $lockGrade = 0
+
+    <#        ////////////////////  REPLACEMENTS    ////////////////////     #>
+
+    #Find instances where DRX\DLX and LURX\LULX are called together, and replace with simply LURX\LULX
+    if ((($Grade -match $DRX) -and ($Grade -match $LURX)) -or (($Grade -match $DLX) -and ($Grade -match $LULX))) {
+        $Grade = $Grade -replace $DRX, ""
+        $Grade = $Grade -replace $DLX, ""
+        $Grade = $Grade -replace '\s+', ' '
+
+    }
+
+    #Find instances of _PIC_ _PPPIC_ and replace with _PPPIC_
+    if (($Grade -match $PIC) -and ($Grade -match $PPPIC)) {
+        $Grade = $Grade -replace $PIC, ""
+        $Grade = $Grade -replace '\s+', ' '
+    }
+
+    #Find instances of DRX and DLX appearing in grade and replace with the one that appeared first. While technically possible, this is usually the LSO mistaking a late line up.
+    if ($Grade -match -join($DRX, ".*", $DLX)) {
+        $Grade = $Grade -replace $DLX, ""
+        $Grade = $Grade -replace '\s+', ' '
+        
+    }
+    if ($Grade -match -join($DLX, ".*", $DRX)) {
+        $Grade = $Grade -replace $DRX, ""
+        $Grade = $Grade -replace '\s+', ' '
+    }
+
+    #Find instances of LULX and LURX in grade and replace with the one that appeared first.
+    if ($Grade -match -join($LURX, ".*", $LULX)) {
+        $Grade = $Grade -replace $LULX, ""
+        $Grade = $Grade -replace '\s+', ' '
+        
+    }
+    if ($Grade -match -join($LULX, ".*", $LURX)) {
+        $Grade = $Grade -replace $LURX, ""
+        $Grade = $Grade -replace '\s+', ' '
+    }
+
+    <#        ////////////////////  GRADING    ////////////////////     #>
+
+    #Check for waveoffs
+
+    # Check for WO(AFU)TL which should be a cut pass. These somtimes don't generate WIRE #
+    if ($Grade -match $WOAFUTL) {
+        $Grade = $Grade -replace $rGRADE, $CUT
+        $Grade = $Grade -replace '\s+', ' '
+        $lockGrade = 1
+    }
+
+    # Check for a WO(AFU)(IC|AR|IM) that still resulted in WIRE # in the grade, indicating a land, which should be a cut pass.
+
+    if (($Grade -match $WOAFU) -and ($Grade -match $WIRE)) {
+        $Grade = $Grade -replace $rGRADE, $CUT
+        $Grade = $Grade -replace '\s+', ' '
+        $lockGrade = 1
+    }
+
+    # Check for a Wave Off in the grade
+    if ($Grade -match $rWO) {
+        $Grade = $Grade -replace $rGRADE, $WO
+        $Grade = $Grade -replace '\s+', ' '
+        $lockGrade = 1
+    }
+
+    #Check for an Own Wave Off in the grade
+    if ($Grade -match $rOWO) {
+        $Grade = $Grade -replace $rGRADE, $OWO
+        $Grade = $Grade -replace '\s+', ' '
+        $lockGrade = 1
+    }
+
+    #Check for a WO(AFU) that did not result in a landing
+    if ($Grade -match $WOAFU) {
+        $Grade = $Grade -replace $rGRADE, $WO
+        $Grade = $Grade -replace '\s+', ' '
+        $lockGrade = 1
+    }
+
+
+
+    # Check for automatic Cuts
+    if ($lockGrade -eq 0) {
+        if (($Grade -match $LLIW) -or 
+            ($Grade -match $LRIW) -or
+            ($Grades -match $LULIW) -or
+            ($Grades -match $LURIW) -or 
+            ($Grade -match $SLOIC) -or 
+            ($Grade -match $SLOAR) -or 
+            ($Grade -match $SLOIW) -or
+            ($Grade -match $PPPIC)) {
+
+                $Grade = $Grade -replace $rGRADE, $CUT
+                $Grade = $Grade -replace '\s+', ' '
+                $lockGrade = 1
+        }
+    }
+
+    # Check for TMRDIC or TMRDAR and EGTL or 3PTS for a cut pass OR if TMRDIC or TMRDAR were major deviations
+
+    if ($lockGrade -eq 0) {
+        if ((($Grade -match $TMRDIC) -or ($Grade -match $TMRDAR)) -and (($Grade -match $EGTL) -or ($Grade -match $3PTSIW)) ) {
             $Grade = $Grade -replace $rGRADE, $CUT
             $Grade = $Grade -replace '\s+', ' '
             $lockGrade = 1
+        }
+        elseif ($Grade -match "_TMRD(IC|AR)_") {
+            $Grade = $Grade -replace $rGRADE, $CUT
+            $Grade = $Grade -replace '\s+', ' '
+            $lockGrade = 1
+        }
+        
     }
-}
 
-# Check for TMRDIC or TMRDAR and EGTL or 3PTS for a cut pass OR if TMRDIC or TMRDAR were major deviations
+    # Check for No Grades
+    if ($lockGrade -eq 0) {
+        if (($Grade -match $TMRDAR) -or
+            ($Grade -match $TMRDIC) -or
+            ($Grade -match $3PTSIW) -or  
+            ($Grade -match $EGTL) -or 
+            ($Grade -match $TMRDIM) -or 
+            ($Grade -match $SLOIM) -or 
+            ($Grade -match $PPPIC) -or 
+            ($Grade -match $PIC) -or
+            ($Grade -match $PAR) -or
+            ($Grade -match $DRIC) -or 
+            ($Grade -match $DLIC) -or 
+            ($Grade -match $LULIC) -or 
+            ($Grade -match $LURIC) -or 
+            ($Grade -match $NERDIC) -or 
+            ($Grade -match $DRAR) -or 
+            ($Grade -match $DLAR) -or 
+            ($Grade -match $NERDAR) -or 
+            ($Grade -match $LURAR) -or 
+            ($Grade -match $LULAR) -or 
+            ($Grade -match $LOAR) -or
+            ($Grade -match $LOIW) -or
+            ($Grade -match $WAR) -or 
+            ($Grade -match $1WIRE) -or
+            ($Grade -match $FIW)) {
 
-if ($lockGrade -eq 0) {
-    if ((($Grade -match $TMRDIC) -or ($Grade -match $TMRDAR)) -and (($Grade -match $EGTL) -or ($Grade -match $3PTSIW)) ) {
-        $Grade = $Grade -replace $rGRADE, $CUT
-        $Grade = $Grade -replace '\s+', ' '
-        $lockGrade = 1
+                $Grade = $Grade -replace $rGRADE, $NOGRADE
+                $Grade = $Grade -replace '\s+', ' '
+                $lockGrade = 1
+        }
     }
-    elseif ($Grade -match "_TMRD(IC|AR)_") {
-        $Grade = $Grade -replace $rGRADE, $CUT
-        $Grade = $Grade -replace '\s+', ' '
-        $lockGrade = 1
-    }
-    
-}
 
-# Check for No Grades
-if ($lockGrade -eq 0) {
-    if (($Grade -match $TMRDAR) -or
-        ($Grade -match $TMRDIC) -or
-        ($Grade -match $3PTSIW) -or  
-        ($Grade -match $EGTL) -or 
-        ($Grade -match $TMRDIM) -or 
-        ($Grade -match $SLOIM) -or 
-        ($Grade -match $PPPIC) -or 
-        ($Grade -match $PIC) -or
-        ($Grade -match $PAR) -or
-        ($Grade -match $DRIC) -or 
-        ($Grade -match $DLIC) -or 
-        ($Grade -match $LULIC) -or 
-        ($Grade -match $LURIC) -or 
-        ($Grade -match $NERDIC) -or 
-        ($Grade -match $DRAR) -or 
-        ($Grade -match $DLAR) -or 
-        ($Grade -match $NERDAR) -or 
-        ($Grade -match $LURAR) -or 
-        ($Grade -match $LULAR) -or 
-        ($Grade -match $LOAR) -or
-        ($Grade -match $LOIW) -or
-        ($Grade -match $WAR) -or 
-        ($Grade -match $1WIRE) -or
-        ($Grade -match $FIW)) {
-
+    #Check for oscillating flight paths and No Grade
+    if ($lockGrade -eq 0) {
+        if (($Grade -match $LEFT) -and ($Grade -match $RIGHT)) {
             $Grade = $Grade -replace $rGRADE, $NOGRADE
             $Grade = $Grade -replace '\s+', ' '
-            $lockGrade = 1
+            $lockGrade = 1        
+        }
     }
-}
-
-#Check for oscillating flight paths and No Grade
-if ($lockGrade -eq 0) {
-    if (($Grade -match $LEFT) -and ($Grade -match $RIGHT)) {
-        $Grade = $Grade -replace $rGRADE, $NOGRADE
-        $Grade = $Grade -replace '\s+', ' '
-        $lockGrade = 1        
-    }
-}
 
 
-# Check for fair passes
-if ($lockGrade -eq 0) {
-    if (($Grade -match $DRX) -or 
-    ($Grade -match $DLX) -or 
-    ($Grade -match $DRIM) -or 
-    ($Grade -match $DLIM) -or 
-    ($Grade -match $LURIM) -or 
-    ($Grade -match $LULIM) -or 
-    ($Grade -match $NERDIM) -or 
-    ($Grade -match $FIM) -or 
-    ($Grade -match $WIM) -or 
-    ($Grade -match $FIC) -or 
-    ($Grade -match $HIC) -or 
-    ($Grade -match $LOIC) -or 
-    ($Grade -match $PIC) -or 
-    ($Grade -match $WIC) -or 
-    ($Grade -match $HAR) -or 
-    ($Grade -match $FAR)) {
+    # Check for fair passes
+    if ($lockGrade -eq 0) {
+        if (($Grade -match $DRX) -or 
+        ($Grade -match $DLX) -or 
+        ($Grade -match $DRIM) -or 
+        ($Grade -match $DLIM) -or 
+        ($Grade -match $LURIM) -or 
+        ($Grade -match $LULIM) -or 
+        ($Grade -match $NERDIM) -or 
+        ($Grade -match $FIM) -or 
+        ($Grade -match $WIM) -or 
+        ($Grade -match $FIC) -or 
+        ($Grade -match $HIC) -or 
+        ($Grade -match $LOIC) -or 
+        ($Grade -match $PIC) -or 
+        ($Grade -match $WIC) -or 
+        ($Grade -match $HAR) -or 
+        ($Grade -match $FAR)) {
 
-        $Grade = $Grade -replace $rGRADE, $FAIR
-        $Grade = $Grade -replace '\s+', ' '
-        $lockGrade = 1
-    }
-}
-
-# Check for OK passes
-if ($lockGrade -eq 0) {
-    if (($Grade -match $LULX) -or 
-        ($Grade -match $LURX) -or 
-        ($Grade -match $FX) -or 
-        ($Grade -match $HX) -or 
-        ($Grade -match $LOX) -or
-        ($Grade -match $HIM) -or 
-        ($Grade -match $LOIM) -or
-        ($Grade -match $NX) -or 
-        ($Grade -match $WX)) {
-
-            $Grade = $Grade -replace $rGRADE, $OK
+            $Grade = $Grade -replace $rGRADE, $FAIR
             $Grade = $Grade -replace '\s+', ' '
             $lockGrade = 1
-    }
-}
-
-# Check for empty #3 wires and change to _OK_
-if ($Grade -match "GRADE:\S{1,4}\s*?:\s*WIRE#\s*3") {
-    $Grade = $Grade -replace $rGRADE, $PERFECT
-}
-# Check for empty #2 and #4 wires and switch to OK
-if ($Grade -match "GRADE:\S{1,4}\s*?:\s*WIRE#\s*(2|4)") {
-    $Grade = $Grade -replace $rGRADE, $OK
-}
-
-# Trim :
-if ($Grade -match ":\s*:") {
-    $Grade = $Grade -replace ":\s*:", ":"
-}
-<# 
----------------------------------------------------------------------
-                        END REGRADING
----------------------------------------------------------------------
-#>
-
-
-$Grade = $Grade -replace '\s+', ' '
-$Grade = $Grade -replace "_", "\_"
-
-#Strip the log message down to the pilot name
-
-$Pilot = $landingEvent
-$Pilot = $Pilot -replace "^.*(?:initiatorPilotName=)", ""
-$Pilot = $Pilot -replace ",.*$", ""
-
-#If the difference between the system time and log event time is greater than the time target, stop. 
-
-if ($diff -gt $timeTarget) {
-
-    Exit
-
+        }
     }
 
-    #If the $Pilot or $Grade somehow turned up $null or blank, stop
-    elseif (($Pilot -eq "System.Object[]") -or ($Grade -eq "System.Object[]")) {
-        Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 400 -EntryType Warning -Message "A landing event was detected but the pilot name or grade was malformed. Discarding pass." -Category 1
-        Exit
+    # Check for OK passes
+    if ($lockGrade -eq 0) {
+        if (($Grade -match $LULX) -or 
+            ($Grade -match $LURX) -or 
+            ($Grade -match $FX) -or 
+            ($Grade -match $HX) -or 
+            ($Grade -match $LOX) -or
+            ($Grade -match $HIM) -or 
+            ($Grade -match $LOIM) -or
+            ($Grade -match $NX) -or 
+            ($Grade -match $WX)) {
 
+                $Grade = $Grade -replace $rGRADE, $OK
+                $Grade = $Grade -replace '\s+', ' '
+                $lockGrade = 1
+        }
     }
 
-    #If the $Pilot or $Grade has a date in the format of ####-##-##, stop. This will happen when AI land as the regex doesn't work correctly without a pilot field in the log event.
-    elseif (($Pilot -match "^.*\d{4}\-\d{2}\-\d{2}.*$") -or ($Grade -match "^.*\d{4}\-\d{2}\-\d{2}.*$")) {
-        Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 401 -EntryType Warning -Message "A landing event was detected but the name or grade contained a date in the format of 2020-01-01 after processing. This indicates that the pass was performed by an AI or the log message was malformed. Discarding pass." -Category 1
-        Exit
-
+    # Check for empty #3 wires and change to _OK_
+    if ($Grade -match "GRADE:\S{1,4}\s*?:\s*WIRE#\s*3") {
+        $Grade = $Grade -replace $rGRADE, $PERFECT
     }
-    #Create the webhook and send it
-    else {
-        #Message content
-        $messageConcent = -join("**Pilot: **", $Pilot, " **Grade:** ", $Grade  )
+    # Check for empty #2 and #4 wires and switch to OK
+    if ($Grade -match "GRADE:\S{1,4}\s*?:\s*WIRE#\s*(2|4)") {
+        $Grade = $Grade -replace $rGRADE, $OK
+    }
+
+    # Trim :
+    if ($Grade -match ":\s*:") {
+        $Grade = $Grade -replace ":\s*:", ":"
+    }
+    <# 
+    ---------------------------------------------------------------------
+                            END REGRADING
+    ---------------------------------------------------------------------
+    #>
 
 
-        #json payload
-        $payload = [PSCustomObject]@{
-            content = $messageConcent
+    $Grade = $Grade -replace '\s+', ' '
+    $Grade = $Grade -replace "_", "\_"
+
+    #Strip the log message down to the pilot name
+
+    $Pilot = $landingEvent
+    $Pilot = $Pilot -replace "^.*(?:initiatorPilotName=)", ""
+    $Pilot = $Pilot -replace ",.*$", ""
+
+    #If the difference between the system time and log event time is greater than the time target, stop. 
+
+    if ($diff -gt $scanInterval) {
+
+            # Do Nothing
+
         }
-        #The webhook
-        try {
-            Invoke-RestMethod -Uri $hookUrl -Method Post -Body ($payload | ConvertTo-Json) -ContentType 'application/json'  
-        }
-        #If the error was specifically a network exception or IO exception, write friendly log message
-        catch [System.Net.WebException],[System.IO.IOException] {
-            Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 403 -EntryType Warning -Message "Failed to establish connection to Discord webhook. Please check that the webhook URL is correct, and activated in Discord." -Category 1 -RawData $hookUrl
-           
-        }
-        catch {
-            Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 404 -EntryType Warning -Message "An unknown error occurred attempting to invoke the API request to Discord." -Category 1
 
+        #If the $Pilot or $Grade somehow turned up $null or blank, stop
+        elseif (($Pilot -eq "System.Object[]") -or ($Grade -eq "System.Object[]")) {
+            Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 400 -EntryType Warning -Message "A landing event was detected but the pilot name or grade was malformed. Discarding pass." -Category 1
+            Exit
 
         }
-   
-        Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 100 -EntryType Information -Message "A landing event was detected and sent successfully via Discord." -Category 1
 
+        #If the $Pilot or $Grade has a date in the format of ####-##-##, stop. This will happen when AI land as the regex doesn't work correctly without a pilot field in the log event.
+        elseif (($Pilot -match "^.*\d{4}\-\d{2}\-\d{2}.*$") -or ($Grade -match "^.*\d{4}\-\d{2}\-\d{2}.*$")) {
+            Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 401 -EntryType Warning -Message "A landing event was detected but the name or grade contained a date in the format of 2020-01-01 after processing. This indicates that the pass was performed by an AI or the log message was malformed. Discarding pass." -Category 1
+            Exit
+
+        }
+        #Create the webhook and send it
+        else {
+            #Message content
+            $messageConcent = -join("**Pilot: **", $Pilot, " **Grade:** ", $Grade  )
+
+
+            #json payload
+            $payload = [PSCustomObject]@{
+                content = $messageConcent
+            }
+            #The webhook
+            try {
+                Invoke-RestMethod -Uri $hookUrl -Method Post -Body ($payload | ConvertTo-Json) -ContentType 'application/json'  
+            }
+            #If the error was specifically a network exception or IO exception, write friendly log message
+            catch [System.Net.WebException],[System.IO.IOException] {
+                Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 403 -EntryType Warning -Message "Failed to establish connection to Discord webhook. Please check that the webhook URL is correct, and activated in Discord." -Category 1 -RawData $hookUrl
+            
+            }
+            catch {
+                Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 404 -EntryType Warning -Message "An unknown error occurred attempting to invoke the API request to Discord." -Category 1
+
+
+            }
+    
+            Write-EventLog -LogName "Application" -Source "LSO Bot" -EventId 100 -EntryType Information -Message "A landing event was detected and sent successfully via Discord." -Category 1
+
+        }
+
+    #Get the run duration of the loop, and convert to the amount of milliseconds the loop should sleep for which is the scan interval minus the run duration
+    $lsoLoopEndSysTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
+    $lsoLoopDuration = $lsoLoopDuration = New-TimeSpan -Start $lsoLoopStartSysTime -End $lsoLoopEndSysTime
+    $lsoSleepTime = ($scanInterval.TotalMilliseconds - $lsoLoopDuration.TotalMilliseconds)
+
+    #Debug Script
+    Write-Output "$lsoLoopEndSysTime - LSO BOT Ran" | Out-file C:\lsobot-debug.txt -append
+
+    Sleep -Milliseconds $lsoSleepTime
 }
+
+#Garbage Collection
+[system.gc]::Collect()
