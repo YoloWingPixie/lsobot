@@ -1,15 +1,36 @@
+<# 
+////////////////////////////////////////////// LSO BOT //////////////////////////////////////////////
+
+Version: 1.1.0 dev
+
+Contributors:
+YoloWingPixie   | https://github.com/YoloWingPixie
+Auranis         | https://github.com/Auranis
+
+Special Thanks to:
+Carrier Strike Group 8 - https://discord.gg/9h9QUA8
+
+#>
+
 # BEGIN USER OPTIONS
 
 <# 
     $logPath = The location of your dcs.log. The default should be correct for most server installs as long as you are running under the correct user.
+
     $hookURL = The webhook URL for Discord
+
     $underlineStyle = Select if you want emphasis comments and perfect passes to be underlined (OK) or underscored like an APARTS trend analysis (_OK_) in Discord.
         See NAVAIR 00-80T-104 pg 11-4 for example differences.
+
+    $hookStyle = Choose between basic text webhook messages and rich formatted embed text webhooks.
+        Basic webhooks are more compact and look like a normal Discord message, which may hurt readability
+        Embed webhooks are more readable but take up more space in the Discord message log. They also have accent colors that correspond with landing grades
 #>
 
     $logPath = "$env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log"
     $hookUrl = "https://discord.com/api/webhooks/NOTAREALWEBHOOKCHANGEME"
     $underlineStyle = "Underline" # Accepts "Underline" or "APARTS", fails back to "APARTS"
+    $hookStyle = "embed" # "basic" for basic webhooks, "embed" for embed text webhooks
 
 # END USER OPTIONS
 
@@ -634,28 +655,116 @@ for ($i = 1; $i -le $timeTarget; $i++) {
         }
         #Create the webhook and send it
         else {
-            #Message content
+                   
+            #Embed Webhook
+            if ($hookStyle -eq "embed") {
+                #Create array to store the embed object we're about to create to pass it in to the webhook's payload
+                [System.Collections.ArrayList]$lsoHookEmbedArray = @()
+                
+                #Split the comments from the grade
+                $lsoComments = $Grade.Split(":")[-1]
+                $Grade = $Grade.Split(":")[0]
+
+                #Pretty colors
+                if ($Grade -Match "_OK_") {
+                    $embedColor = "835704"
+                }
+                elseif ($Grade -Match "(?<!_|\()OK") {
+                    $embedColor = "41056"
+                }
+                elseif ($Grade -Match "\(OK") {
+                    $embedColor = "31818"
+                }   
+                elseif ($Grade -Match "---") {
+                    $embedColor = "16751120"
+                }
+                elseif ($Grade -Match "CUT") {
+                    $embedColor = "15404878"
+                }
+                elseif ($Grade -Match "Bolter") {
+                    $embedColor = "16756287"
+                }
+                elseif ($Grade -Match "WO") {
+                    $embedColor = "1535929"
+                }
+                else {
+                    $embedColor = "410486"
+                }
+
+                #Create embed object
+                $hookEmbedObject = [PSCustomObject]@{
+
+                    #title       = $title
+                    color       = $embedColor
+                    fields      = @(
+                    [PSCustomObject]@{ 
+                        name = "Pilot"
+                        value = $Pilot
+                        inline = $true
+                        }
+                    [PSCustomObject]@{ 
+                        name = "Grade"
+                        value = $Grade
+                        inline = $true
+                        }
+                    [PSCustomObject]@{ 
+                        name = "Comments"
+                        value = $lsoComments
+                        inline = $true
+                        }
+                    )
+
+                }
+
+                #Add embed object to array
+                $lsoHookEmbedArray.Add($hookEmbedObject) | Out-Null
+
+                #Create the payload
+                $hookPayload = [PSCustomObject]@{
+
+                    embeds = $lsoHookEmbedArray
+
+                    }
+
+                #Send webhook
+                try {
+                    Invoke-RestMethod -Uri $webHookUrl -Body ($hookPayload | ConvertTo-Json -Depth 5) -Method Post -ContentType 'application/json'                    
+                    Write-Output "$(Get-Timestamp) $logInfo $logDiscord A landing event was detected and sent successfully via Discord." | Out-file C:\lsobot-debug.txt -append
+                    }
+                #If the error was specifically a network exception or IO exception, write friendly log message
+                catch [System.Net.WebException],[System.IO.IOException] {
+                    Write-Output "$(Get-Timestamp) $logError $logDiscord Failed to establish connection to Discord webhook. Please check that the webhook URL is correct, and activated in Discord." | Out-file C:\lsobot-debug.txt -append              
+                    }
+                catch {
+                    Write-Output "$(Get-Timestamp) $logError $logDiscord An unknown error occurred attempting to invoke the API request to Discord." | Out-file C:\lsobot-debug.txt -append
+                    }
+                
+            }
+
+            # Basic Webhook
+            else {
+                            #Message content
             $messageConcent = -join("**Pilot: **", $Pilot, " **Grade:** ", $Grade  )
 
 
             #json payload
-            $payload = [PSCustomObject]@{
+            $hookPayload = [PSCustomObject]@{
                 content = $messageConcent
-            }
+                }
             #The webhook
             try {
-                Invoke-RestMethod -Uri $hookUrl -Method Post -Body ($payload | ConvertTo-Json) -ContentType 'application/json'  
+                Invoke-RestMethod -Uri $hookUrl -Method Post -Body ($hookPayload | ConvertTo-Json) -ContentType 'application/json'  
                 Write-Output "$(Get-Timestamp) $logInfo $logDiscord A landing event was detected and sent successfully via Discord." | Out-file C:\lsobot-debug.txt -append
-            }
+                }
             #If the error was specifically a network exception or IO exception, write friendly log message
             catch [System.Net.WebException],[System.IO.IOException] {
-                Write-Output "$(Get-Timestamp) $logError $logDiscord Failed to establish connection to Discord webhook. Please check that the webhook URL is correct, and activated in Discord." | Out-file C:\lsobot-debug.txt -append
-            
-            }
+                Write-Output "$(Get-Timestamp) $logError $logDiscord Failed to establish connection to Discord webhook. Please check that the webhook URL is correct, and activated in Discord." | Out-file C:\lsobot-debug.txt -append            
+                }
             catch {
                 Write-Output "$(Get-Timestamp) $logError $logDiscord An unknown error occurred attempting to invoke the API request to Discord." | Out-file C:\lsobot-debug.txt -append
- 
+                }
             }
+
         }
     }
 
