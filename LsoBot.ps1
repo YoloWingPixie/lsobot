@@ -34,12 +34,14 @@ $takeoffEventRegex = "^.*takeoff.*$"
     $lsoJobSpan : The time the job should run for, which should equal the repetition interval of the scheudled job trigger
     $lsoStopTime : The time the job should stop which is $lsoStartTime + $lsoJobSpan
     $timeTarget : This is the integer that will be fed to the for loop to exit the loop once the job has reached $lsoStopTime
+    $scanInterval : This timespawn represents the default time span that the main loop will sleep for. This is modified heavily in the loop, do not modify without understanding the code.
     $lsoBolterSleepTimer : The amount of time that the loop should sleep if it detects a potential Bolter, to catch the takeoff event in the log.
 #>
 
 [DateTime]$lsoStartTime = [DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss.fff')
 $lsoJobSpan = New-TimeSpan -Seconds 60
 [DateTime]$lsoStopTime = $lsoStartTime + $lsoJobSpan
+$scanInterval = New-TimeSpan -Seconds 15
 $timeTarget = $lsoJobSpan.TotalSeconds/$scanInterval.TotalSeconds
 $lsoBolterSleepTimer = New-TimeSpan -Seconds 6
 
@@ -195,6 +197,9 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     else {
         $scanInterval = $scanInterval + $lsoLoopDuration + $lsoLoopDuration
     }
+
+    #Reset Bolter control
+    $lsoNoBolter = 0
 
 
     #Check dcs.log for the last line that matches the landing quality mark regex.
@@ -355,67 +360,94 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                     $lockGrade = 1
                     }
                 }
+                else {
+                    Write-Output "$(Get-Timestamp) $logInfo $logRegex Did not detect bolter, grading pass as WO" | Out-file C:\lsobot-debug.txt -append
+                    $Grade = $Grade -replace $rGRADE, $WO
+                    $Grade = $Grade -replace '\s+', ' '
+                    $lsoNoBolter = 1
+                    $lockGrade = 1
+                }
             }
+
 
 
 
     #Check for an Own Wave Off in the grade. If an own wave off is detected, get additional context from the log, look for a takeoff event from the same player that was landing.
     #If the $Pilot has taken off from the boat within 7 secounds of the grade, presume this is a bolter.
-    if ($Grade -match $rOWO) {
-        Write-Output "$(Get-Timestamp) $logInfo $logRegex Found an own wave off. Sleeping for 6 seconds to detect a bolter" | Out-file C:\lsobot-debug.txt -append
-        Start-Sleep -Seconds $lsoBolterSleepTimer.TotalSeconds
-        $getLandingContext = Select-String -Path $logPath -Pattern $lsoEventRegex -Context 12 | Select-Object -Last 1 | Out-String
-        $getLandingContext = $getLandingContext -Split "`r`n"
-        if ($getLandingContext -match $takeoffEventRegex) {
-            Write-Output "$(Get-Timestamp) $logInfo $logRegex Found a takeoff event within bolter timeframe." | Out-file C:\lsobot-debug.txt -append
-            $getTakeoffEventPilot = Select-String -Path $logPath -Pattern $takeoffEventRegex | Select-Object -Last 1
-            $getTakeoffEventPilot = $getTakeoffEventPilot -replace "^.*(?:takeoff,initiatorPilotName=)", ""
-            $getTakeoffEventPilot = $getTakeoffEventPilot -replace ",.*$", ""
-            $getTakeoffEventTime = Select-String -Path $logPath -Pattern $takeoffEventTimeRegex | Select-Object Matches -Last 1
-                if ($getTakeoffEventTime.Matches.Value -le $trapTime+7) {
-                        Write-Output "$(Get-Timestamp) $logInfo $logRegex Detected bolter, grading pass as Bolter" | Out-file C:\lsobot-debug.txt -append
-                        $Grade = $Grade -replace $rGRADE, $BOLTER
+    if($lockGrade -eq 0){
+        if ($Grade -match $rOWO) {
+            Write-Output "$(Get-Timestamp) $logInfo $logRegex Found an own wave off. Sleeping for 6 seconds to detect a bolter" | Out-file C:\lsobot-debug.txt -append
+            Start-Sleep -Seconds $lsoBolterSleepTimer.TotalSeconds
+            $getLandingContext = Select-String -Path $logPath -Pattern $lsoEventRegex -Context 12 | Select-Object -Last 1 | Out-String
+            $getLandingContext = $getLandingContext -Split "`r`n"
+            if ($getLandingContext -match $takeoffEventRegex) {
+                Write-Output "$(Get-Timestamp) $logInfo $logRegex Found a takeoff event within bolter timeframe." | Out-file C:\lsobot-debug.txt -append
+                $getTakeoffEventPilot = Select-String -Path $logPath -Pattern $takeoffEventRegex | Select-Object -Last 1
+                $getTakeoffEventPilot = $getTakeoffEventPilot -replace "^.*(?:takeoff,initiatorPilotName=)", ""
+                $getTakeoffEventPilot = $getTakeoffEventPilot -replace ",.*$", ""
+                $getTakeoffEventTime = Select-String -Path $logPath -Pattern $takeoffEventTimeRegex | Select-Object Matches -Last 1
+                    if ($getTakeoffEventTime.Matches.Value -le $trapTime+7) {
+                            Write-Output "$(Get-Timestamp) $logInfo $logRegex Detected bolter, grading pass as Bolter" | Out-file C:\lsobot-debug.txt -append
+                            $Grade = $Grade -replace $rGRADE, $BOLTER
+                            $Grade = $Grade -replace '\s+', ' '
+                            $lockGrade = 1  
+                            }
+                    else {
+                        Write-Output "$(Get-Timestamp) $logInfo $logRegex Did not detect bolter, grading pass as OWO" | Out-file C:\lsobot-debug.txt -append
+                        $Grade = $Grade -replace $rGRADE, $OWO
                         $Grade = $Grade -replace '\s+', ' '
-                        $lockGrade = 1  
+                        $lockGrade = 1       
                         }
-                else {
-                    Write-Output "$(Get-Timestamp) $logInfo $logRegex Did not detect bolter, grading pass as OWO" | Out-file C:\lsobot-debug.txt -append
-                    $Grade = $Grade -replace $rGRADE, $OWO
-                    $Grade = $Grade -replace '\s+', ' '
-                    $lockGrade = 1       
                     }
-                }
-
-        }
-
-
-    #Check for a WO(AFU) that did not result in a landing allegedly, and make sure there was no take off, in which case, make it a bolter.
-    if ($Grade -match $WOAFU) {
-        Write-Output "$(Get-Timestamp) $logInfo $logRegex Found a WO(AFU). Sleeping for 6 seconds to detect a bolter" | Out-file C:\lsobot-debug.txt -append
-        Start-Sleep -Seconds $lsoBolterSleepTimer.TotalSeconds
-        $getLandingContext = Select-String -Path $logPath -Pattern $lsoEventRegex -Context 12 | Select-Object -Last 1 | Out-String
-        $getLandingContext = $getLandingContext -Split "`r`n"
-        if ($getLandingContext -match $takeoffEventRegex) {
-            Write-Output "$(Get-Timestamp) $logInfo $logRegex Found a takeoff event within bolter timeframe." | Out-file C:\lsobot-debug.txt -append
-            $getTakeoffEventPilot = Select-String -Path $logPath -Pattern $takeoffEventRegex | Select-Object -Last 1
-            $getTakeoffEventPilot = $getTakeoffEventPilot -replace "^.*(?:takeoff,initiatorPilotName=)", ""
-            $getTakeoffEventPilot = $getTakeoffEventPilot -replace ",.*$", ""
-            $getTakeoffEventTime = Select-String -Path $logPath -Pattern $takeoffEventTimeRegex | Select-Object Matches -Last 1
-                if ($getTakeoffEventTime.Matches.Value -le $trapTime+7) {
-                        Write-Output "$(Get-Timestamp) $logInfo $logRegex Detected bolter, grading pass as Bolter" | Out-file C:\lsobot-debug.txt -append
-                        $Grade = $Grade -replace $rGRADE, $BOLTER
-                        $Grade = $Grade -replace '\s+', ' '
-                        $lockGrade = 1  
-                     }
                 else {
                     Write-Output "$(Get-Timestamp) $logInfo $logRegex Did not detect bolter, grading pass as WO" | Out-file C:\lsobot-debug.txt -append
-                    $Grade = $Grade -replace $rGRADE, $WO
+                    $Grade = $Grade -replace $rGRADE, $OWO
                     $Grade = $Grade -replace '\s+', ' '
+                    $lsoNoBolter = 1
+                    $lockGrade = 1
+                    }
+                }
+            }
+
+    
+
+    #Check for a WO(AFU) that did not result in a landing allegedly, and make sure there was no take off, in which case, make it a bolter.
+    if ($lockGrade -eq 0) {
+        if ($Grade -match $WOAFU) {
+            Write-Output "$(Get-Timestamp) $logInfo $logRegex Found a WO(AFU). Sleeping for 6 seconds to detect a bolter" | Out-file C:\lsobot-debug.txt -append
+            Start-Sleep -Seconds $lsoBolterSleepTimer.TotalSeconds
+            $getLandingContext = Select-String -Path $logPath -Pattern $lsoEventRegex -Context 12 | Select-Object -Last 1 | Out-String
+            $getLandingContext = $getLandingContext -Split "`r`n"
+            if ($getLandingContext -match $takeoffEventRegex) {
+                Write-Output "$(Get-Timestamp) $logInfo $logRegex Found a takeoff event within bolter timeframe." | Out-file C:\lsobot-debug.txt -append
+                $getTakeoffEventPilot = Select-String -Path $logPath -Pattern $takeoffEventRegex | Select-Object -Last 1
+                $getTakeoffEventPilot = $getTakeoffEventPilot -replace "^.*(?:takeoff,initiatorPilotName=)", ""
+                $getTakeoffEventPilot = $getTakeoffEventPilot -replace ",.*$", ""
+                $getTakeoffEventTime = Select-String -Path $logPath -Pattern $takeoffEventTimeRegex | Select-Object Matches -Last 1
+                    if ($getTakeoffEventTime.Matches.Value -le $trapTime+7) {
+                            Write-Output "$(Get-Timestamp) $logInfo $logRegex Detected bolter, grading pass as Bolter" | Out-file C:\lsobot-debug.txt -append
+                            $Grade = $Grade -replace $rGRADE, $BOLTER
+                            $Grade = $Grade -replace '\s+', ' '
+                            $lockGrade = 1  
+                        }
+                    else {
+                        Write-Output "$(Get-Timestamp) $logInfo $logRegex Did not detect bolter, grading pass as WO" | Out-file C:\lsobot-debug.txt -append
+                        $Grade = $Grade -replace $rGRADE, $WO
+                        $Grade = $Grade -replace '\s+', ' '
+                        $lockGrade = 1
+                    }
+                    
+                }
+                else {
+                    Write-Output "$(Get-Timestamp) $logInfo $logRegex Did not detect bolter, grading pass as WO" | Out-file C:\lsobot-debug.txt -append
+                    $Grade = $Grade -replace $rGRADE, $OWO
+                    $Grade = $Grade -replace '\s+', ' '
+                    $lsoNoBolter = 1
                     $lockGrade = 1
                 }
-                
             }
-   }
+        }
+
 
     # Check for automatic Cuts
     if ($lockGrade -eq 0) {
@@ -551,8 +583,8 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     }
 
     # Trim :
-    if ($Grade -match ":\s*:") {
-        $Grade = $Grade -replace ":\s*:", ":"
+    if ($Grade -match ":\s?(\(|\)|__|_|\s*)\s?:") {
+        $Grade = $Grade -replace ":\s?(\(|\)|__|_|\s*)\s?:", ":"
     }
 
     Write-Output "$(Get-Timestamp) $logInfo $logRegex Regraded Grade: $Grade"
