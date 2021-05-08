@@ -17,7 +17,7 @@ Carrier Strike Group 8 - https://discord.gg/9h9QUA8
 <# 
     $logPath = The location of your dcs.log. The default should be correct for most server installs as long as you are running under the correct user.
 
-    $hookURL = The webhook URL for Discord
+    $webHookUrl = The webhook URL for Discord
 
     $underlineStyle = Select if you want emphasis comments and perfect passes to be underlined (OK) or underscored like an APARTS trend analysis (_OK_) in Discord.
         See NAVAIR 00-80T-104 pg 11-4 for example differences.
@@ -28,7 +28,7 @@ Carrier Strike Group 8 - https://discord.gg/9h9QUA8
 #>
 
     $logPath = "$env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log"
-    $hookUrl = "https://discord.com/api/webhooks/NOTAREALWEBHOOKCHANGEME"
+    $webHookUrl = "https://discord.com/api/webhooks/NOTAREALWEBHOOKCHANGEME"
     $underlineStyle = "Underline" # Accepts "Underline" or "APARTS", fails back to "APARTS"
     $hookStyle = "embed" # "basic" for basic webhooks, "embed" for embed text webhooks
 
@@ -753,7 +753,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                 }
             #The webhook
             try {
-                Invoke-RestMethod -Uri $hookUrl -Method Post -Body ($hookPayload | ConvertTo-Json) -ContentType 'application/json'  
+                Invoke-RestMethod -Uri $webHookUrl -Method Post -Body ($hookPayload | ConvertTo-Json) -ContentType 'application/json'  
                 Write-Output "$(Get-Timestamp) $logInfo $logDiscord A landing event was detected and sent successfully via Discord." | Out-file C:\lsobot-debug.txt -append
                 }
             #If the error was specifically a network exception or IO exception, write friendly log message
