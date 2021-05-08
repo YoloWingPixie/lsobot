@@ -1,14 +1,17 @@
-# BEGIN USER VARIABLES
+# BEGIN USER OPTIONS
 
 <# 
     $logPath = The location of your dcs.log. The default should be correct for most server installs as long as you are running under the correct user.
     $hookURL = The webhook URL for Discord
+    $underlineStyle = Select if you want emphasis comments and perfect passes to be underlined (OK) or underscored like an APARTS trend analysis (_OK_) in Discord.
+        See NAVAIR 00-80T-104 pg 11-4 for example differences.
 #>
 
     $logPath = "$env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log"
     $hookUrl = "https://discord.com/api/webhooks/NOTAREALWEBHOOKCHANGEME"
+    $underlineStyle = "Underline" # Accepts "Underline" or "APARTS", fails back to "APARTS"
 
-# END USER VARIABLES
+# END USER OPTIONS
 
 Write-Output "$(Get-Timestamp) $logInfo LSO BOT Job Started" | Out-file C:\lsobot-debug.txt -append
 
@@ -562,7 +565,18 @@ for ($i = 1; $i -le $timeTarget; $i++) {
 
 
     $Grade = $Grade -replace '\s+', ' '
-    $Grade = $Grade -replace "_", "\_"
+
+    #Underline stle as defined by $underlineStyle
+    if ($underlineStyle -eq "Underline") {
+        $Grade = $Grade -replace "_", "__"      
+        }
+    elseif ($underlineStyle -eq "APARTS") {
+        $Grade = $Grade -replace "_", "\_"
+        }
+    else {
+        $Grade = $Grade -replace "_", "\_"
+        }
+
 
     #If the difference between the system time and log event time is greater than the time target, stop. 
 
