@@ -182,8 +182,6 @@ Write-Output "$(Get-Timestamp) $info $lcTime Time target is $timeTarget" | Out-f
     $BIW =      "(_|\()?(?:BIW)(_|\))?"
     $EGTL =     "(_|\()?(?:EGTL)(_|\))?"
 
-
-
 # //////////////////////////////////////////// MAIN LOOP STARTS HERE /////////////////////////////////////////////
 
 for ($i = 1; $i -le $timeTarget; $i++) {
@@ -204,7 +202,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     
     }
     # Is the loop duration null? (This happens on Run 0 of the job), set it to a fair 150ms.
-    if ($lsoLoopDuration -eq $null) {
+    if ($null -eq $lsoLoopDuration) {
         $lsoLoopDuration = New-TimeSpan -Milliseconds 150
         
     }
@@ -244,7 +242,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
 
     #If dcs.log did not contain any lines that matched the LSO regex, stop, otherwise continue
 
-    if ($landingEvent -eq $null ) {
+    if ($null -eq $landingEvent ) {
 
         Write-Output "$(Get-Timestamp) $info $lcDect No landing event detected" | Out-file $debugLog -append
         #Do Nothing
@@ -625,6 +623,35 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     FINAL FORMATTING
     
     #>
+
+    #Reordering. Pulls apart grade in to the Grade, X, IM, IC, AR, IW, and Wire and then joins them back together.
+    #This needs to be done because the AI LSO has a habit of writing comments out of order. 
+    $xGrade = $Grade.Split()
+    $yGrade = ($Grade -split '(?=:)')[0] + ":"
+    $xX  = $xGrade | Where-Object {$_ -match "\w*X(_|\))?\b"}
+    $xIM = $xGrade | Where-Object {$_ -match "\w*IM(_|\))?\b"} 
+    $xIC = $xGrade | Where-Object {$_ -match "\w*IC(_|\))?\b"} 
+    $xAR = $xGrade | Where-Object {$_ -match "\w*AR(_|\))?\b"} 
+    $xIW = $xGrade | Where-Object {$_ -match "\w*IW(_|\))?\b"} 
+    $xWIRE = ($xGrade | Where-Object {$_ -match "(?:WIRE#)"}) + " " + ($xGrade | Where-Object {$_ -match "\d(?!PTS)"})
+
+    if ($xX)    { $xX = [String]::Join(" ",$xX)   }
+    if ($xIM)   { $xIM = [String]::Join(" ",$xIM) }
+    if ($xIC)   { $xIC = [String]::Join(" ",$xIC) }
+    if ($xAR)   { $xAR = [String]::Join(" ",$xAR) }
+    if ($xIW)   { $xIW = [String]::Join(" ",$xIW) }
+
+    $Grade = $yGrade + " " + $xX + " " + $xIM + " " + $xIC + " " + $xAR + " " + $xIW + " " + $xWIRE
+
+    # IW Cleanup. None of these comments need IW in them. DO NOT move this above reordering or these comments will disappear.
+    $Grade = $Grade -replace 'LLWDIW', 'LLWD'
+    $Grade = $Grade -replace 'LLIW', 'LL'
+    $Grade = $Grade -replace 'LRIW', 'LR'
+    $Grade = $Grade -replace 'LRWDIW', 'LRWD'
+    $Grade = $Grade -replace '3PTSIW', '3PTS'
+    $Grade = $Grade -replace 'LNFIW', 'LNF'
+
+
 
     #One final extraneous white space trim
     $Grade = $Grade -replace '\s+', ' '
