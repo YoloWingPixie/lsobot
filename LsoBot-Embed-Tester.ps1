@@ -1,46 +1,46 @@
 $webHookUrl =  "https://discord.com/api/webhooks/838497159484670022/skvK73LpMD4ZMcyUznSnjvGSemZdl8J0hYFeFBZu0mGwRQMjlTwBFBE3M2H5D37Tt8KG"
 
 #Create embed array
-[System.Collections.ArrayList]$embedArray = @()
+[System.Collections.ArrayList]$lsoHookEmbedArray = @()
 
 
 #Store embed values
 $Pilot = "Virtual Aviator"
-$Grade = "WO (Wave Off): (LURIM) DRIM LOIM WO(AFU)IC"
-$Comments = $Grade.Split(":")[-1]
+$Grade = "WO (Wave Off):"
+$lsoComments = $Grade.Split(":")[-1]
 $Grade = $Grade.Split(":")[0]
 
-$Color = "93ca3b"
+$embedColor = "93ca3b"
 if ($Grade -Match "_OK_") {
-    $Color = "835704"
+    $embedColor = "835704"
 }
 elseif ($Grade -Match "(?<!_|\()OK") {
-    $Color = "41056"
+    $embedColor = "41056"
 }
 elseif ($Grade -Match "\(OK") {
-    $Color = "31818"
+    $embedColor = "31818"
 }   
 elseif ($Grade -Match "---") {
-    $Color = "16751120"
+    $embedColor = "16751120"
 }
 elseif ($Grade -Match "CUT") {
-    $Color = "15404878"
+    $embedColor = "15404878"
 }
 elseif ($Grade -Match "Bolter") {
-    $Color = "16756287"
+    $embedColor = "16756287"
 }
 elseif ($Grade -Match "WO") {
-    $Color = "1535929"
+    $embedColor = "1535929"
 }
 else {
-    $Color = "410486"
+    $embedColor = "410486"
 }
 
 #Create embed object
-$embedObject = [PSCustomObject]@{
+$hookEmbedObject = [PSCustomObject]@{
 
     #title       = $title
-    color       = $color
+    color       = $embedColor
     fields      = @(
     [PSCustomObject]@{ 
         name = "Pilot"
@@ -54,7 +54,7 @@ $embedObject = [PSCustomObject]@{
         }
     [PSCustomObject]@{ 
         name = "Comments"
-        value = $Comments
+        value = $lsoComments
         inline = $true
         }
     )
@@ -62,14 +62,14 @@ $embedObject = [PSCustomObject]@{
 }
 
 #Add embed object to array
-$embedArray.Add($embedObject) | Out-Null
+$lsoHookEmbedArray.Add($hookEmbedObject) | Out-Null
 
 #Create the payload
-$payload = [PSCustomObject]@{
+$hookPayload = [PSCustomObject]@{
 
-    embeds = $embedArray
+    embeds = $lsoHookEmbedArray
 
 }
 
-#Send over payload, converting it to JSON
-Invoke-RestMethod -Uri $webHookUrl -Body ($payload | ConvertTo-Json -Depth 5) -Method Post -ContentType 'application/json'
+#Send webhook
+Invoke-RestMethod -Uri $webHookUrl -Body ($hookPayload | ConvertTo-Json -Depth 5) -Method Post -ContentType 'application/json'
