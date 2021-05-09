@@ -47,14 +47,14 @@ if ($dcsLogPath -match '\$env:USERPROFILE') {
 }
 
 #Log Format Variables
-$info = " | INFO | "
-$warn = " | WARNING | "
-$err = " | ERROR | "
-$lcReg = " REGEX | "
+$info = "| INFO |"
+$warn = "| WARNING |"
+$err = "| ERROR |"
+$lcReg = " REGEX |"
 $lcDiscord = " DISCORD | "
-$lcTime = " TIMING | "
-$lcJob = " JOB | "
-$lcDect = " DETECT | "
+$lcTime = " TIMING |"
+$lcJob = " JOB |"
+$lcDect = " DETECT |"
 
 # The regex to check the log messages for
 $lsoEventRegex = "^.*landing.quality.mark.*"
@@ -102,7 +102,7 @@ Write-Output "$(Get-Timestamp) $info $lcTime Time target is $timeTarget" | Out-f
     $CUT =      'C (CUT): '
     $WO =       'WO (Wave Off): '
     $OWO =      'OWO (Own Wave Off): '
-    $BOLTER =   'B (Bolter)'
+    $BOLTER =   'B (Bolter):'
     $WOAFU =    "WO\(AFU\)(IC|AR|IM)"
     $WOAFUTL =  "WO\(AFU\)TL"
     $rWO =      "GRADE:WO"
@@ -681,8 +681,14 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                 [System.Collections.ArrayList]$lsoHookEmbedArray = @()
                 
                 #Split the comments from the grade
-                $lsoComments = $Grade.Split(":")[-1]
+                [String]$lsoComments = $Grade.Split(":")[-1]
+                if ($lsoComments -eq "") {
+                    $lsoComments = 'n/a'
+                    $Grade = $Grade.Split(":")[1]
+                }
+                else{
                 $Grade = $Grade.Split(":")[0]
+                }
 
                 <# Accent color of the embed based on the landing: 
 
@@ -807,11 +813,11 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     #>
     $lsoLoopEndSysTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss.fff"
     $lsoLoopDuration = $lsoLoopDuration = New-TimeSpan -Start $lsoLoopStartSysTime -End $lsoLoopEndSysTime
-    Write-Output "$(Get-Timestamp) $info LSO BOT loop duration was $lsoLoopDuration" | Out-file $debugLog -append
+    Write-Output "$(Get-Timestamp) $info $lcJob LSO BOT loop duration was $lsoLoopDuration" | Out-file $debugLog -append
 
     $lsoSleepTime = ($scanInterval.TotalMilliseconds - $lsoLoopDuration.TotalMilliseconds) 
-    Write-Output "$(Get-Timestamp) $info Sleep duration is now $lsoSleepTime based on $scanInterval - $lsoLoopDuration" | Out-file $debugLog -append
-    Write-Output "$(Get-Timestamp) $info LSO BOT Cycle Ran. Sleeping for $lsoSleepTime milliseconds" | Out-file $debugLog -append
+    Write-Output "$(Get-Timestamp) $info $lcTime Sleep duration is now $lsoSleepTime based on $scanInterval - $lsoLoopDuration" | Out-file $debugLog -append
+    Write-Output "$(Get-Timestamp) $info $lcTime LSO BOT Cycle Ran. Sleeping for $lsoSleepTime milliseconds" | Out-file $debugLog -append
 
     Start-Sleep -Milliseconds $lsoSleepTime
 }
