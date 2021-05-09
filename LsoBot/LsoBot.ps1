@@ -26,6 +26,7 @@ param(
 # END FUNCTIONS
 
     $debugLog = "$LsoScriptRoot\Logs\lsoBot-debug.txt"
+    $rawGradelog = "$LsoScriptRoot\Logs\lsoBot-rawGrades.txt"
     $configPath = "$LsoScriptRoot\LsoBot-Config.psd1"
 
     Write-Output "$(Get-Timestamp) $logInfo LSO BOT Job Started" | Out-file $debugLog -append
@@ -657,7 +658,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
         }
         #Create the webhook and send it
         else {
-            Write-Output "$(Get-Timestamp) $RawGrade" | Out-file $PSScriptRoot\Logs\lsobot-RawGrades.txt -append
+            Write-Output "$(Get-Timestamp) $RawGrade" | Out-file $rawGradelog -append
                    
             #EMBED WEBHOOK 
 
@@ -748,7 +749,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
             # BASIC WEBHOOK
 
             else {
-                Write-Output "$(Get-Timestamp) $RawGrade" | Out-file $PSScriptRoot\Logs\lsobot-RawGrades.txt -append
+                Write-Output "$(Get-Timestamp) $RawGrade" | Out-file $rawGradelog -append
 
                             #Message content
                 $messageConcent = -join("**Pilot: **", $Pilot, " **Grade:** ", $Grade  )
