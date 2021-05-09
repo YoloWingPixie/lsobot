@@ -13,6 +13,7 @@ Special Thanks to:
 Carrier Strike Group 8 - https://discord.gg/9h9QUA8
 
 #>
+
 param(
     $LsoScriptRoot
 )
@@ -32,7 +33,6 @@ $reGradedLog = "$LsoScriptRoot\Logs\lsoBot-reGrades.txt"
 $configPath = "$LsoScriptRoot\LsoBot-Config.psd1"
 
 Write-Output "$(Get-Timestamp) $info ///// LSO BOT Job Started /////" | Out-file $debugLog -append
-#Import the configuration file
 
 Get-Content $configPath
 $lsoConfig = Import-PowerShellDataFile $configPath
@@ -41,7 +41,6 @@ Write-Output "$(Get-Timestamp) $info Successfully imported config file" | Out-fi
 
 $dcsLogPath = $lsoConfig.logpath
 
-#Replace the environment variable USERPROFILE with the path.
 if ($dcsLogPath -match '\$env:USERPROFILE') {
     $dcsLogPath = $dcsLogPath -replace '\$env:USERPROFILE', $env:USERPROFILE
 }
@@ -88,9 +87,9 @@ $lsoBolterSleepTimer = New-TimeSpan -Seconds 6
 Write-Output "$(Get-Timestamp) $info $lcTime Scan interval is $scanInterval" | Out-file $debugLog -append
 Write-Output "$(Get-Timestamp) $info $lcTime Time target is $timeTarget" | Out-file $debugLog -append
 
-#///////////////////////////////////////////////////// REGEX /////////////////////////////////////////////////////
 
-# BEGIN REGRADING REGEX
+
+#///////////////////////////////////////////////////// REGEX /////////////////////////////////////////////////////
 
 #Grade Regex
     $1WIRE =     "(?:WIRE# 1)"
@@ -183,7 +182,7 @@ Write-Output "$(Get-Timestamp) $info $lcTime Time target is $timeTarget" | Out-f
     $BIW =      "(_|\()?(?:BIW)(_|\))?"
     $EGTL =     "(_|\()?(?:EGTL)(_|\))?"
 
-# END REGRADING REGEX
+
 
 # //////////////////////////////////////////// MAIN LOOP STARTS HERE /////////////////////////////////////////////
 
@@ -231,10 +230,6 @@ for ($i = 1; $i -le $timeTarget; $i++) {
         $scanInterval = $scanInterval + $lsoLoopDuration + $lsoLoopDuration
     }
 
-    #Reset Bolter control
-    $lsoNoBolter = 0
-
-
     #Check dcs.log for the last line that matches the landing quality mark regex.
     try {
 
@@ -261,7 +256,6 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     $logTime = $landingEvent
     $logTime = $logTime -replace "^.*(?:dcs\.log\:\d{1,5}\:)", ""
     $logTime = $logTime -replace "\..*$", ""
-    #$logTime = $logTime.split()[-1]
     Write-Output "$(Get-Timestamp) $info $lcDect Landing detected at $logTime UTC" | Out-file $debugLog -append
 
     #Convert the log time string to a usable time object
@@ -669,15 +663,12 @@ for ($i = 1; $i -le $timeTarget; $i++) {
         }
         #Create the webhook and send it
         else {
-            # For the sake of not duplicating every job run, we output the raw grade from a couple hundred lines
-            # earlier only when a webhook triggers for it. Meaning it's unique and is valuable in that log.
             Write-Output "$(Get-Timestamp) $RawGrade" | Out-file $rawGradelog -append
             Write-Output "$(Get-Timestamp) $Grade" | Out-file $reGradedLog -append
                    
             #EMBED WEBHOOK 
 
             if ($lsoConfig.hookStyle -eq "embed") {
-                #Create array to store the embed object we're about to create to pass it in to the webhook's payload
                 [System.Collections.ArrayList]$lsoHookEmbedArray = @()
                 
                 #Split the comments from the grade
@@ -777,9 +768,6 @@ for ($i = 1; $i -le $timeTarget; $i++) {
             # BASIC WEBHOOK
 
             else {
-                <# For the sake of not duplicating every job run, we output the raw grade and regraded grade 
-                from a couple hundred lines earlier only when a webhook triggers for it. Meaning it's unique 
-                and is valuable in those logs. #>
                 Write-Output "$(Get-Timestamp) $RawGrade" | Out-file $rawGradelog -append
                 Write-Output "$(Get-Timestamp) $Grade" | Out-file $reGradedLog -append
 
