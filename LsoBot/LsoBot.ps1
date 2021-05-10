@@ -24,13 +24,23 @@ function Get-Timestamp {
     return Get-Date -Format "yyyy-MM-dd HH:mm:ss:fff"
 }
 
-    
+[DateTime]$lsoStartTime = [DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss.fff')
+
 # END FUNCTIONS
 
 $debugLog = "$LsoScriptRoot\Logs\lsoBot-debug.txt"
 $rawGradelog = "$LsoScriptRoot\Logs\lsoBot-rawGrades.txt"
 $reGradedLog = "$LsoScriptRoot\Logs\lsoBot-reGrades.txt"
 $configPath = "$LsoScriptRoot\LsoBot-Config.psd1"
+
+if (Test-Path $debugLog) {
+    $debugLogDate = (Get-ChildItem $debugLog).CreationTime
+    if ($debugLogDate -lt (Get-Date).AddDays(-1)) {
+        $newFile = "$LsoScriptRoot\Logs\lsoBot-debug-" + (Get-Date).AddDays(-1).ToString("yyyy-MM-dd") + ".txt"
+        Copy-Item -Path $debugLog -Destination $newFile
+        Remove-Item -Path $debugLog
+    }
+}
 
 Write-Output "$(Get-Timestamp) $info ///// LSO BOT Job Started /////" | Out-file $debugLog -append
 
@@ -77,7 +87,6 @@ $takeoffEventRegex = "^.*takeoff.*$"
     to catch the takeoff event in the log.
 #>
 
-[DateTime]$lsoStartTime = [DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss.fff')
 $lsoJobSpan = New-TimeSpan -Seconds 60
 [DateTime]$lsoStopTime = $lsoStartTime + $lsoJobSpan
 $scanInterval = New-TimeSpan -Seconds 15
@@ -480,8 +489,8 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     if ($lockGrade -eq 0) {
         if (($Grade -match $LLIW) -or 
             ($Grade -match $LRIW) -or
-            ($Grades -match $LULIW) -or
-            ($Grades -match $LURIW) -or 
+            ($Grade -match $LULIW) -or
+            ($Grade -match $LURIW) -or 
             ($Grade -match $SLOIC) -or 
             ($Grade -match $SLOAR) -or 
             ($Grade -match $SLOIW) -or
