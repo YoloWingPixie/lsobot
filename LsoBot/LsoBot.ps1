@@ -295,6 +295,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     $Grade = $Grade -replace "^.*(?:comment=LSO:)", ""
     $Grade = $Grade -replace ",.*$", ""
 
+    $RawGrade = $Grade
     Write-Output "$(Get-Timestamp) $info $lcRegex Raw Grade is $Grade" | Out-file $debugLog -append
 
     <# 
@@ -357,8 +358,6 @@ for ($i = 1; $i -le $timeTarget; $i++) {
         $Grade = $Grade -replace $LURX, ""
         $Grade = $Grade -replace '\s+', ' '
     }
-
-        $RawGrade = $Grade
 
     <#        ////////////////////  GRADING    ////////////////////     #>
         #Because of the nature of the grades in a server dcs.log, almost all grades will need to be re-evaluated
