@@ -6,6 +6,7 @@ $LsoScriptRoot.Trim()
 $LsoScriptRoot.Split([Environment]::NewLine)[0]
 $logX = "\Logs\lsobot-debug.txt"
 $logPath =  $LsoScriptRoot + $logX
+[int16]$repetitionInterval = 600
 
 ## END USER VARIABLES
 
@@ -19,11 +20,11 @@ function Get-Timestamp {
 $O = New-ScheduledJobOption -MultipleInstancePolicy Queue
 
 # Start the job immediately, repeate every minute, for 10 years.This wil persist past reboot.
-$T = New-JobTrigger -Once -At $lsoJobStart -RepetitionInterval (New-TimeSpan -Seconds 60) -RepetitionDuration (New-Timespan -Days 3650)
+$T = New-JobTrigger -Once -At $lsoJobStart -RepetitionInterval (New-TimeSpan -Seconds $repetitionInterval) -RepetitionDuration (New-Timespan -Days 3650)
 
 # Create scheduled job
 try {
-    Register-ScheduledJob -Name "LSO Check" -FilePath $lsoBotfilePath -ScheduledJobOption $O -Trigger $T -ArgumentList @($LsoScriptRoot)
+    Register-ScheduledJob -Name "LSO Check" -FilePath $lsoBotfilePath -ScheduledJobOption $O -Trigger $T -RunNow -ArgumentList @($LsoScriptRoot,$repetitionInterval)
 
 }
 catch {

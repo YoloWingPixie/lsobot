@@ -15,7 +15,8 @@ Carrier Strike Group 8 - https://discord.gg/9h9QUA8
 #>
 
 param(
-    $LsoScriptRoot
+    $LsoScriptRoot,
+    [int16]$repetitionInterval
 )
 
 # BEGIN FUNCTIONS
@@ -87,7 +88,7 @@ $takeoffEventRegex = "^.*takeoff.*$"
     to catch the takeoff event in the log.
 #>
 
-$lsoJobSpan = New-TimeSpan -Seconds 60
+$lsoJobSpan = New-TimeSpan -Seconds $repetitionInterval
 [DateTime]$lsoStopTime = $lsoStartTime + $lsoJobSpan
 $scanInterval = New-TimeSpan -Seconds 15
 $timeTarget = $lsoJobSpan.TotalSeconds/$scanInterval.TotalSeconds
@@ -192,6 +193,10 @@ Write-Output "$(Get-Timestamp) $info $lcTime Time target is $timeTarget" | Out-f
     $EGTL =     "(_|\()?(?:EGTL)(_|\))?"
 
 # //////////////////////////////////////////// MAIN LOOP STARTS HERE /////////////////////////////////////////////
+    [DateTime]$lsoInitTime = [DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss.fff')
+    $lsoInitDur = New-TimeSpan -Start $lsoStartTime -End $lsoInitTime
+
+    Write-Output "$(Get-Timestamp) $info $lcJob Start block loaded in $lsoInitDur" | Out-file $debugLog -append
 
 for ($i = 1; $i -le $timeTarget; $i++) {
 
@@ -212,8 +217,8 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     }
     # Is the loop duration null? (This happens on Run 0 of the job), set it to a fair 150ms.
     if ($null -eq $lsoLoopDuration) {
-        $lsoLoopDuration = New-TimeSpan -Milliseconds 150
-        
+        $lsoLoopDuration = [TimeSpan]::FromMilliseconds(150)
+
     }
 
 <#  Calculate the scan interval. To make a long story short, there is a small couple hundred millisecond gap 
@@ -230,6 +235,14 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     We test for that first, and subtract out the BolterSleepTimer. #>
 
     $scanInterval = New-TimeSpan -Seconds 15
+
+    #If this is the first loop in the job we need to account for the config loading time.
+    if ($i -eq 1) {
+        $scanInterval = $scanInterval + $lsoInitDur
+    }
+
+    #Adjust the scan interval to account for the previous loop run duration, trimming out the bolter sleep time if it
+    #occured.
     if ($lsoLoopDuration.TotalMilliseconds -gt $lsoBolterSleepTimer.TotalMilliseconds) {
         $scanInterval =  $scanInterval + ($lsoLoopDuration - $lsoBolterSleepTimer) + ($lsoLoopDuration - $lsoBolterSleepTimer)       
     }
