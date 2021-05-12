@@ -34,6 +34,10 @@ $rawGradelog = "$LsoScriptRoot\Logs\lsoBot-rawGrades.txt"
 $reGradedLog = "$LsoScriptRoot\Logs\lsoBot-reGrades.txt"
 $configPath = "$LsoScriptRoot\LsoBot-Config.psd1"
 
+if (!(Test-Path "$LsoScriptRoot\Logs")) {
+    New-Item -ItemType Directory -Force -Path "$LsoScriptRoot\Logs"
+}
+
 if (Test-Path $debugLog) {
     $debugLogDate = (Get-ChildItem $debugLog).CreationTime
     if ($debugLogDate -lt (Get-Date).AddDays(-1)) {
@@ -295,6 +299,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     $Grade = $Grade -replace "^.*(?:comment=LSO:)", ""
     $Grade = $Grade -replace ",.*$", ""
 
+    $RawGrade = $Grade
     Write-Output "$(Get-Timestamp) $info $lcRegex Raw Grade is $Grade" | Out-file $debugLog -append
 
     <# 
@@ -357,8 +362,6 @@ for ($i = 1; $i -le $timeTarget; $i++) {
         $Grade = $Grade -replace $LURX, ""
         $Grade = $Grade -replace '\s+', ' '
     }
-
-        $RawGrade = $Grade
 
     <#        ////////////////////  GRADING    ////////////////////     #>
         #Because of the nature of the grades in a server dcs.log, almost all grades will need to be re-evaluated
@@ -655,15 +658,19 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     $xIC = $xGrade | Where-Object {$_ -match "\w*IC(_|\))?\b"} 
     $xAR = $xGrade | Where-Object {$_ -match "\w*AR(_|\))?\b"} 
     $xIW = $xGrade | Where-Object {$_ -match "\w*IW(_|\))?\b"} 
+    $xTL = $xGrade | Where-Object {$_ -match "\w*TL(_|\))?\b"}
+    $xAW = $xGrade | Where-Object {$_ -match "\w*AW(_|\))?\b"}
     $xWIRE = ($xGrade | Where-Object {$_ -match "(?:WIRE#)"}) + " " + ($xGrade | Where-Object {$_ -match "\d(?!PTS)"})
 
-    if ($xX)    { $xX = [String]::Join(" ",$xX)   }
+    if ($xX)    { $xX =  [String]::Join(" ",$xX)  }
     if ($xIM)   { $xIM = [String]::Join(" ",$xIM) }
     if ($xIC)   { $xIC = [String]::Join(" ",$xIC) }
     if ($xAR)   { $xAR = [String]::Join(" ",$xAR) }
     if ($xIW)   { $xIW = [String]::Join(" ",$xIW) }
+    if ($xTL)   { $xTL = [String]::Join(" ",$xTL) }
+    if ($xAW)   { $xAW = [String]::Join(" ",$xAW) }
 
-    $Grade = $yGrade + " " + $xX + " " + $xIM + " " + $xIC + " " + $xAR + " " + $xIW + " " + $xWIRE
+    $Grade = $yGrade + " " + $xX + " " + $xIM + " " + $xIC + " " + $xAR + " " + $xIW + " " + $xAW + " " + $xTL + " " + $xWIRE
 
     # IW Cleanup. None of these comments need IW in them. DO NOT move this above reordering or these comments will disappear.
     $Grade = $Grade -replace 'LLWDIW', 'LLWD'
@@ -673,7 +680,14 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     $Grade = $Grade -replace '3PTSIW', '3PTS'
     $Grade = $Grade -replace 'LNFIW', 'LNF'
 
+    # WO Cleanup.
+    $Grade = $Grade -replace 'WO\(AFU\)(X|IM|IC|AR)', 'WO(AFU)'
+    $Grade = $Grade -replace 'WOFD(X|IM|IC|AR)', 'WO(FD)'
+    $Grade = $Grade -replace 'WONSUX', 'WO(NSU)'
 
+    #Remove major marks from TMRD
+    $Grade = $Grade -replace '_(?=TMRD(X|IM|IC|AR))', ''
+    $Grade = $Grade -replace '(?<=TMRD\w{2})_', ''
 
     #One final extraneous white space trim
     $Grade = $Grade -replace '\s+', ' '

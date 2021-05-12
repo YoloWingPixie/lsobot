@@ -5,8 +5,13 @@ $LsoScriptRoot = $PWD.Path
 $LsoScriptRoot.Trim()
 $LsoScriptRoot.Split([Environment]::NewLine)[0]
 $logX = "\Logs\lsobot-debug.txt"
+$logDir = "$LsoScriptRoot\Logs"
 $logPath =  $LsoScriptRoot + $logX
 [int16]$repetitionInterval = 600
+
+if (!(Test-Path $logDir)) {
+    New-Item -ItemType Directory -Force -Path $logDir
+}
 
 ## END USER VARIABLES
 
