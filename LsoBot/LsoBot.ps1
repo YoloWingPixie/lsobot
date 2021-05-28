@@ -28,7 +28,6 @@ function Get-Timestamp {
 [DateTime]$lsoStartTime = [DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss.fff')
 
 # END FUNCTIONS
-$script:Points = "0.0"
 $debugLog = "$LsoScriptRoot\Logs\lsoBot-debug.txt"
 $rawGradelog = "$LsoScriptRoot\Logs\lsoBot-rawGrades.txt"
 $reGradedLog = "$LsoScriptRoot\Logs\lsoBot-reGrades.txt"
@@ -60,6 +59,10 @@ Write-Output "$(Get-Timestamp) $info Log Path: $dcsLogPath" | Out-file $debugLog
 if ($dcsLogPath -match '\$env:USERPROFILE') {
     $dcsLogPath = $dcsLogPath -replace '\$env:USERPROFILE', $env:USERPROFILE
 }
+
+$points = "0.0"
+$pointScoring = $lsoConfig.pointScoring
+
 
 #Log Format Variables
 $info = "| INFO |"
@@ -207,8 +210,9 @@ Write-Output "$(Get-Timestamp) $info $lcTime Time target is $timeTarget" | Out-f
     Write-Output "$(Get-Timestamp) $info $lcJob Start block loaded in $lsoInitDur" | Out-file $debugLog -append
 
 #Iterate through previously logged traps in rawGrades and advance $logTrapIndex by one for every trap already logged to prevent relogging
+Write-Output "$(Get-Timestamp) $info Iterating existing traps" | Out-file $debugLog -append
 while ($true) {
-    Write-Output "$(Get-Timestamp) $info Iterating existing traps" | Out-file $debugLog -append
+    
     $lastTrapString = Select-String -Path $rawGradelog -Pattern "^.*GRADE:.*" | Select-Object -Last 1
     $lastTrapString = $lastTrapString -replace "^.*(?:.txt\:\d{0,5}\:)", ""
     $lastTrapString = $lastTrapString -replace ",.*$", ""
@@ -216,23 +220,30 @@ while ($true) {
     $lastTrapTime.ToUniversalTime()
 
     $landingEvent = Select-String -Path $dcsLogPath -Pattern $lsoEventRegex | Select-Object -Index $logTrapIndex
-
-    if ($null -eq $landingEvent -or $null -eq $lastTrapTime) {
-        Write-Output "$(Get-Timestamp) $Info Exit 1 logTrapIndex: $logTrapIndex" | Out-file $debugLog -append
-        break
-    }
-
     $logTime = $landingEvent
     $logTime = $logTime -replace "^.*(?:dcs\.log\:\d{1,5}\:)", ""
     $logTime = $logTime -replace "\..*$", ""
     [DateTime]$trapTime = $logTime
 
-    if ($trapTime -le $lastTrapTime) {
+    Write-Output "$(Get-Timestamp) $Info Last registered trap in rawGrades at time:$lastTrapTime, examining DCS.log trap at time:$trapTime" | Out-file $debugLog -append
+    if ($null -eq $landingEvent) {
+        #No landing event exists at the current $logTrapIndex
+        Write-Output "$(Get-Timestamp) $Info No landing events at index; exiting with logTrapIndex: $logTrapIndex" | Out-file $debugLog -append
+        break
+    }
+    elseif ($null -eq $lastTrapTime) {
+        #No traps stored in rawGrades
+        Write-Output "$(Get-Timestamp) $Info No traps stored in rawGrades; exiting with logTrapIndex: $logTrapIndex" | Out-file $debugLog -append
+        break
+    }
+    elseif ($trapTime -le $lastTrapTime) {
+        #DCS.log trap at $logTrapIndex is older than $lastTrapTime, advance $logTrapIndex by 1 so it isn't logged again
         Write-Output "$(Get-Timestamp) $info Trap at $trapTime already registered" | Out-file $debugLog -append
         $logTrapIndex++
     }
     else {
-        Write-Output "$(Get-Timestamp) $info Exit 2, logTrapIndex: $logTrapIndex" | Out-file $debugLog -append
+        #Generic catch
+        Write-Output "$(Get-Timestamp) $info Generic catch, exiting with logTrapIndex: $logTrapIndex" | Out-file $debugLog -append
         break
     }
 }
@@ -395,7 +406,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
             if ($Grade -match $WOAFUTL) {
                 Write-Output "$(Get-Timestamp) $info $lcReg Found WO(AFU)TL, grading pass as Cut" | Out-file $debugLog -append
                 $Grade = $Grade -replace $rGRADE, $CUT
-                $Points = "1.0"
+                $points = "1.0"
                 $Grade = $Grade -replace '\s+', ' '
                 $lockGrade = 1
             }
@@ -404,7 +415,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
             if (($Grade -match $WOAFU) -and ($Grade -match $WIRE)) {
                 Write-Output "$(Get-Timestamp) $info $lcReg Found WO(AFU) and a WIRE caught, grading pass as Cut" | Out-file $debugLog -append
                 $Grade = $Grade -replace $rGRADE, $CUT
-                $Points = "1.0"
+                $points = "1.0"
                 $Grade = $Grade -replace '\s+', ' '
                 $lockGrade = 1
             }
@@ -428,14 +439,14 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                         if ($getTakeoffEventTime.Matches.Value -le $trapTime+7) {
                             Write-Output "$(Get-Timestamp) $info $lcReg Detected bolter, grading pass as Bolter" | Out-file $debugLog -append
                                 $Grade = $Grade -replace $rGRADE, $BOLTER
-                                $Points = "2.5"
+                                $points = "2.5"
                                 $Grade = $Grade -replace '\s+', ' '
                                 $lockGrade = 1  
                             }
                         else {
                             Write-Output "$(Get-Timestamp) $info $lcReg Did not detect bolter, grading pass as WO" | Out-file $debugLog -append
                             $Grade = $Grade -replace $rGRADE, $WO
-                            $Points = "2.5"
+                            $points = "2.5"
                             $Grade = $Grade -replace '\s+', ' '
                             $lockGrade = 1
                             }
@@ -443,7 +454,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                         else {
                             Write-Output "$(Get-Timestamp) $info $lcReg Did not detect bolter, grading pass as WO" | Out-file $debugLog -append
                             $Grade = $Grade -replace $rGRADE, $WO
-                            $Points = "2.5"
+                            $points = "2.5"
                             $Grade = $Grade -replace '\s+', ' '
                             $lockGrade = 1
                         }
@@ -465,14 +476,14 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                             if ($getTakeoffEventTime.Matches.Value -le $trapTime+7) {
                                     Write-Output "$(Get-Timestamp) $info $lcReg Detected bolter, grading pass as Bolter" | Out-file $debugLog -append
                                     $Grade = $Grade -replace $rGRADE, $BOLTER
-                                    $Points = "2.5"
+                                    $points = "2.5"
                                     $Grade = $Grade -replace '\s+', ' '
                                     $lockGrade = 1  
                                     }
                             else {
                                 Write-Output "$(Get-Timestamp) $info $lcReg Did not detect bolter, grading pass as OWO" | Out-file $debugLog -append
                                 $Grade = $Grade -replace $rGRADE, $OWO
-                                $Points = "2.5"
+                                $points = "2.5"
                                 $Grade = $Grade -replace '\s+', ' '
                                 $lockGrade = 1       
                                 }
@@ -480,7 +491,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                         else {
                             Write-Output "$(Get-Timestamp) $info $lcReg Did not detect bolter, grading pass as WO" | Out-file $debugLog -append
                             $Grade = $Grade -replace $rGRADE, $OWO
-                            $Points = "2.5"
+                            $points = "2.5"
                             $Grade = $Grade -replace '\s+', ' '
                             $lockGrade = 1
                             }
@@ -503,14 +514,14 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                             if ($getTakeoffEventTime.Matches.Value -le $trapTime+7) {
                                     Write-Output "$(Get-Timestamp) $info $lcReg Detected bolter, grading pass as Bolter" | Out-file $debugLog -append
                                     $Grade = $Grade -replace $rGRADE, $BOLTER
-                                    $Points = "2.5"
+                                    $points = "2.5"
                                     $Grade = $Grade -replace '\s+', ' '
                                     $lockGrade = 1  
                                 }
                             else {
                                 Write-Output "$(Get-Timestamp) $info $lcReg Did not detect bolter, grading pass as WO" | Out-file $debugLog -append
                                 $Grade = $Grade -replace $rGRADE, $WO
-                                $Points = "2.5"
+                                $points = "2.5"
                                 $Grade = $Grade -replace '\s+', ' '
                                 $lockGrade = 1
                             }
@@ -519,7 +530,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                         else {
                             Write-Output "$(Get-Timestamp) $info $lcReg Did not detect bolter, grading pass as WO" | Out-file $debugLog -append
                             $Grade = $Grade -replace $rGRADE, $OWO
-                            $Points = "2.5"
+                            $points = "2.5"
                             $Grade = $Grade -replace '\s+', ' '
                             $lockGrade = 1
                         }
@@ -547,13 +558,13 @@ for ($i = 1; $i -le $timeTarget; $i++) {
             if ($lockGrade -eq 0) {
                 if ((($Grade -match $TMRDIC) -or ($Grade -match $TMRDAR)) -and (($Grade -match $EGTL) -or ($Grade -match $3PTSIW)) ) {
                     $Grade = $Grade -replace $rGRADE, $CUT
-                    $Points = "1.0"
+                    $points = "1.0"
                     $Grade = $Grade -replace '\s+', ' '
                     $lockGrade = 1
                 }
                 elseif ($Grade -match "_TMRD(IC|AR)_") {
                     $Grade = $Grade -replace $rGRADE, $CUT
-                    $Points = "1.0"
+                    $points = "1.0"
                     $Grade = $Grade -replace '\s+', ' '
                     $lockGrade = 1
                 }
@@ -589,7 +600,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
 
                         Write-Output "$(Get-Timestamp) $info $lcReg Found unsafe deviation. Grading pass as No Grade." | Out-file $debugLog -append
                         $Grade = $Grade -replace $rGRADE, $NOGRADE
-                        $Points = "2.0"
+                        $points = "2.0"
                         $Grade = $Grade -replace '\s+', ' '
                         $lockGrade = 1
                 }
@@ -600,7 +611,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                 if (($Grade -match $LEFT) -and ($Grade -match $RIGHT)) {
                     Write-Output "$(Get-Timestamp) $info $lcReg Found oscillating flight path. Grading pass as NO Grade." | Out-file $debugLog -append
                     $Grade = $Grade -replace $rGRADE, $NOGRADE
-                    $Points = "2.0"
+                    $points = "2.0"
                     $Grade = $Grade -replace '\s+', ' '
                     $lockGrade = 1        
                 }
@@ -626,7 +637,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                 ($Grade -match $FAR)) {
                     Write-Output "$(Get-Timestamp) $info $lcReg Found deviations that were corrected before landing. Graded as Fair." | Out-file $debugLog -append
                     $Grade = $Grade -replace $rGRADE, $FAIR
-                    $Points = "3.0"
+                    $points = "3.0"
                     $Grade = $Grade -replace '\s+', ' '
                     $lockGrade = 1
                 }
@@ -646,7 +657,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
 
                         Write-Output "$(Get-Timestamp) $info $lcReg Found minor deviations that were corrected before landing. Graded as OK." | Out-file $debugLog -append
                         $Grade = $Grade -replace $rGRADE, $OK
-                        $Points = "4.0"
+                        $points = "4.0"
                         $Grade = $Grade -replace '\s+', ' '
                         $lockGrade = 1
                 }
@@ -656,13 +667,13 @@ for ($i = 1; $i -le $timeTarget; $i++) {
             if ($Grade -match "GRADE:\S{1,4}\s*?:\s*WIRE#\s*3") {
                 Write-Output "$(Get-Timestamp) $info $lcReg Found no deviations and a 3# WIRE. Graded pass as Excellent." | Out-file $debugLog -append
                 $Grade = $Grade -replace $rGRADE, $PERFECT
-                $Points = "5.0"
+                $points = "5.0"
             }
             # Check for empty #2 and #4 wires and switch to OK
             if ($Grade -match "GRADE:\S{1,4}\s*?:\s*WIRE#\s*(2|4)") {
                 Write-Output "$(Get-Timestamp) $info $lcReg Found no deviations and a #2 or #4 WIRE. Graded as OK." | Out-file $debugLog -append
                 $Grade = $Grade -replace $rGRADE, $OK
-                $Points = "4.0"
+                $points = "4.0"
             }
 
             # Trim :
@@ -751,8 +762,15 @@ for ($i = 1; $i -le $timeTarget; $i++) {
 
             #Create the webhook and send it
             else {
-                Write-Output "$trapTime,$Pilot,$Points,$RawGrade" | Out-file $rawGradelog -append
-                Write-Output "$trapTime,$Pilot,$Points,$Grade" | Out-file $reGradedLog -append
+                $logString = ""
+                if ($pointScoring) {
+                    $logString = "$trapTime,$Pilot,$points,"
+                }
+                else {
+                    $logString = "$trapTime,$Pilot,"
+                }
+                Write-Output "$logString$RawGrade" | Out-file $rawGradelog -append
+                Write-Output "$logString$Grade" | Out-file $reGradedLog -append
                         
                 #EMBED WEBHOOK 
 
@@ -806,36 +824,64 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                     }
 
                     #Create embed object
-                    $hookEmbedObject = [PSCustomObject]@{
+                    
+                    if ($pointScoring) {
+                        $script:hookEmbedObject = [PSCustomObject]@{
 
-                        #title       = $title
-                        color       = $embedColor
-                        fields      = @(
-                        [PSCustomObject]@{ 
-                            name = "**Pilot**"
-                            value = $Pilot
-                            inline = $true
-                            }
-                        [PSCustomObject]@{ 
-                            name = "**Grade**"
-                            value = $Grade
-                            inline = $true
-                            }
-                        [PSCustomObject]@{ 
-                            name = "**Points**"
-                            value = $Points
-                            inline = $true
-                            }
-                        [PSCustomObject]@{ 
-                            name = "**Comments**"
-                            value = $lsoComments
-                            inline = $true
-                            }
-                        )
+                            #title       = $title
+                            color       = $embedColor
+                            fields      = @(
+                            [PSCustomObject]@{ 
+                                name = "**Pilot**"
+                                value = $Pilot
+                                inline = $true
+                                }
+                            [PSCustomObject]@{ 
+                                name = "**Grade**"
+                                value = $Grade
+                                inline = $true
+                                }
+                            [PSCustomObject]@{ 
+                                name = "**Points**"
+                                value = $points
+                                inline = $true
+                                }
+                            [PSCustomObject]@{ 
+                                name = "**Comments**"
+                                value = $lsoComments
+                                inline = $true
+                                }
+                            )
+                        }
+                    }
+                    else {
+                        $script:hookEmbedObject = [PSCustomObject]@{
+
+                            #title       = $title
+                            color       = $embedColor
+                            fields      = @(
+                            [PSCustomObject]@{ 
+                                name = "**Pilot**"
+                                value = $Pilot
+                                inline = $true
+                                }
+                            [PSCustomObject]@{ 
+                                name = "**Grade**"
+                                value = $Grade
+                                inline = $true
+                                }
+    
+                            [PSCustomObject]@{ 
+                                name = "**Comments**"
+                                value = $lsoComments
+                                inline = $true
+                                }
+                            )
+                        }
                     }
 
                     #Add embed object to array
-                    $lsoHookEmbedArray.Add($hookEmbedObject) | Out-Null
+                    $lsoHookEmbedArray.Add($script:hookEmbedObject) | Out-Null
 
                     #Create the payload
                     $hookPayload = [PSCustomObject]@{
@@ -861,11 +907,24 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                 # BASIC WEBHOOK
 
                 else {
-                    Write-Output "$trapTime,$Pilot,$Points,$RawGrade" | Out-file $rawGradelog -append
-                    Write-Output "$trapTime,$Pilot,$Points,$Grade" | Out-file $reGradedLog -append
+                    $logString = ""
+                    if ($pointScoring) {
+                        $logString = "$trapTime,$Pilot,$points,"
+                    }
+                    else {
+                        $logString = "$trapTime,$Pilot,"
+                    }
+                    Write-Output "$logString$RawGrade" | Out-file $rawGradelog -append
+                    Write-Output "$logString$Grade" | Out-file $reGradedLog -append
 
                     #Message content
-                    $messageContent = -join("**Pilot: **", $Pilot, " **Grade:** ", $Grade  )
+                    $messageContent = ""
+                    if ($pointScoring) {
+                        $messageContent = -join("**Pilot: **", $Pilot, " **Points:** ", $points, " **Grade:** ", $Grade  )
+                    }
+                    else {
+                        $messageContent = -join("**Pilot: **", $Pilot, " **Grade:** ", $Grade  )
+                    }
 
                     #json payload
                     $hookPayload = [PSCustomObject]@{
