@@ -539,7 +539,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
         if (($Grade -match $TMRDAR) -or
             ($Grade -match $TMRDIC) -or
             ($Grade -match $3PTSIW) -or  
-            ($Grade -match $EGTL) -or 
+           #($Grade -match $EGTL) -or 
             ($Grade -match $TMRDIM) -or 
             ($Grade -match $SLOIM) -or 
             ($Grade -match $PPPIC) -or 
@@ -612,6 +612,7 @@ for ($i = 1; $i -le $timeTarget; $i++) {
             ($Grade -match $LOX) -or
             ($Grade -match $HIM) -or 
             ($Grade -match $LOIM) -or
+            ($Grade -match $EGTL) -or
             ($Grade -match $NX) -or 
             ($Grade -match $WX)) {
 
