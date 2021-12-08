@@ -849,6 +849,13 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                 try {
                     Invoke-RestMethod -Uri $lsoConfig.webHookUrl -Body ($hookPayload | ConvertTo-Json -Depth 5) -Method Post -ContentType 'application/json'
                     Write-Output "$(Get-Timestamp) $info $lcDiscord A landing event was detected and sent successfully via Discord." | Out-file $debugLog -append
+
+                    # If the debug flag is enabled send payload to debug server too
+                    if (debug_flag -eq 1)
+                    {
+                        Invoke-RestMethod -Uri $lsoConfig.webHookUrl_debug -Body ($hookPayload | ConvertTo-Json -Depth 5) -Method Post -ContentType 'application/json'
+                        Write-Output "$(Get-Timestamp) $info $lcDiscord A landing event was detected and sent successfully to debug Discord." | Out-file $debugLog -append
+                    }
                 }
                     #If the error was specifically a network exception or IO exception, write friendly log message
                 catch [System.Net.WebException],[System.IO.IOException] {
@@ -876,6 +883,14 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                 try {
                 Invoke-RestMethod -Uri $lsoConfig.webHookUrl -Method Post -Body ($hookPayload | ConvertTo-Json) -ContentType 'application/json'  
                 Write-Output "$(Get-Timestamp) $info $lcDiscord A landing event was detected and sent successfully via Discord." | Out-file $debugLog -append
+
+                # If the debug flag is enabled send payload to debug server too
+                if (debug_flag -eq 1)
+                {
+                    Invoke-RestMethod -Uri $lsoConfig.webHookUrl_debug -Body ($hookPayload | ConvertTo-Json -Depth 5) -Method Post -ContentType 'application/json'
+                    Write-Output "$(Get-Timestamp) $info $lcDiscord A landing event was detected and sent successfully to debug Discord." | Out-file $debugLog -append
+                }
+
                 }
                     #If the error was specifically a network exception or IO exception, write friendly log message
                 catch [System.Net.WebException],[System.IO.IOException] {

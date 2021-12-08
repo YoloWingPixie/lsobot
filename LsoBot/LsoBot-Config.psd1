@@ -44,6 +44,12 @@ Carrier Strike Group 8 - https://discord.gg/9h9QUA8
     
     webHookUrl  = 'https://discord.com/api/webhooks/NOTAREALWEBHOOKCHANGEME'
 
+    # Enable debugging set flag to 1, else set to 0
+    debug_flag = 1;
+
+    # Second Webhook URL for use with debugging server
+    webHookUrl_debug = 'https://discord.com/api/webhooks/NOTAREALWEBHOOKCHANGEME'
+
     logpath     = '$env:USERPROFILE\Saved Games\DCS.openbeta_server\Logs\dcs.log'
     #Only the environment variable $env:USERPROFILE is supported
 
