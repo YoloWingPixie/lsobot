@@ -51,6 +51,9 @@ Carrier Strike Group 8 - https://discord.gg/9h9QUA8
 
     underlineStyle = "Underline" 
 
-    hookStyle = "embed"   
+    hookStyle = "embed"
+    
+    #Output grade points to Discord and logs; $true or $false
+    pointScoring = $false
 
 }
