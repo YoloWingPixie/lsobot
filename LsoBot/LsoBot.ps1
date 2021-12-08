@@ -5,9 +5,13 @@ Version: 1.1.0 dev
 
 Join the Discord: https://discord.gg/nr9xb6YJfw
 
-Contributors:
+Original Contributors:
 YoloWingPixie   | https://github.com/YoloWingPixie
 Auranis         | https://github.com/Auranis
+
+Currently branch maintained by:
+BadMojo11       | https://github.com/BadMojo11
+Japopich        | https://github.com/japopich
 
 Special Thanks to:
 Carrier Strike Group 8 - https://discord.gg/9h9QUA8
@@ -539,7 +543,6 @@ for ($i = 1; $i -le $timeTarget; $i++) {
         if (($Grade -match $TMRDAR) -or
             ($Grade -match $TMRDIC) -or
             ($Grade -match $3PTSIW) -or  
-           #($Grade -match $EGTL) -or 
             ($Grade -match $TMRDIM) -or 
             ($Grade -match $SLOIM) -or 
             ($Grade -match $PPPIC) -or 
@@ -814,6 +817,33 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                     embeds = $lsoHookEmbedArray
 
                 }
+
+                <# Update Google Sheets with LSO Grades - START #>
+
+                # Replace with Google web app url from google sheets wep app deployment
+                $GoogleWebAppURL = 'INSERT_GOOGLE_WEB_APP_URL'
+
+                $Column1Name = 'Date/Time'
+                $Column1Value = $(Get-Timestamp)
+
+                $Column2Name = 'Pilot'
+                $Column2Value = $Pilot
+
+                $Column3Name = 'Grade'
+                $Column3Value = $Grade
+
+                $Column4Name = 'Comments'
+                $Column4Value = $lsoComments
+
+                $Column5Name = 'Points'
+                $Column5Value = $points
+
+                $postParams = @{$Column1Name=$Column1Value;$Column2Name=$Column2Value;$Column3Name=$Column3Value;$Column4Name=$Column4Value;$Column5Name=$Column5Value}
+                Invoke-WebRequest -UseBasicParsing -Uri $GoogleWebAppURL -Method POST -Body $postParams
+
+                Write-Host `"$Column1Name=$Column1Value"&"$Column2Name=$Column2Value"&"$Column3Name=$Column3Value"&"$Column4Name=$Column4Value"&"$Column5Name=$Column5Value`"
+
+                <# Update Google Sheets with LSO Grades - END #>
 
                     #Send webhook
                 try {

@@ -5,9 +5,13 @@ Version: 1.1.0 dev
 
 Join the Discord: https://discord.gg/nr9xb6YJfw
 
-Contributors:
+Original Contributors:
 YoloWingPixie   | https://github.com/YoloWingPixie
 Auranis         | https://github.com/Auranis
+
+Currently branch maintained by:
+BadMojo11       | https://github.com/BadMojo11
+Japopich        | https://github.com/japopich
 
 Special Thanks to:
 Carrier Strike Group 8 - https://discord.gg/9h9QUA8
