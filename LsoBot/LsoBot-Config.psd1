@@ -9,7 +9,7 @@ Original Contributors:
 YoloWingPixie   | https://github.com/YoloWingPixie
 Auranis         | https://github.com/Auranis
 
-Currently branch maintained by:
+Current branch maintained by:
 BadMojo11       | https://github.com/BadMojo11
 Japopich        | https://github.com/japopich
 
