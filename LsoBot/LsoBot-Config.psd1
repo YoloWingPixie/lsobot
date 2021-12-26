@@ -34,6 +34,11 @@ Carrier Strike Group 8 - https://discord.gg/9h9QUA8
 
         Accepts: "embed" or "basic"
         Fallback: "basic"
+
+    $showCarrier = Whether to display the name of the carrier in landing grades. Useful in missions with many carriers.
+
+        Accepts: $true or $false
+        Fallback: $false
 #>
 
 @{
@@ -48,5 +53,7 @@ Carrier Strike Group 8 - https://discord.gg/9h9QUA8
     underlineStyle = "Underline" 
 
     hookStyle = "embed"   
+
+    showCarrier = $false
 
 }

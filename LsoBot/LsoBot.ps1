@@ -294,6 +294,11 @@ for ($i = 1; $i -le $timeTarget; $i++) {
     $Pilot = $Pilot -replace "^.*(?:initiatorPilotName=)", ""
     $Pilot = $Pilot -replace ",.*$", ""
 
+    #Strip the log message down to the carrier name
+    $Carrier = $landingEvent
+    $Carrier = $Carrier -replace "^.*(?:place=)", ""
+    $Carrier = $Carrier -replace ",.*$", ""
+
     #Strip the log message down to the landing grade and add escapes for _
     $Grade = $landingEvent
     $Grade = $Grade -replace "^.*(?:comment=LSO:)", ""
@@ -802,6 +807,17 @@ for ($i = 1; $i -le $timeTarget; $i++) {
                         inline = $true
                         }
                     )
+                }
+
+                #Add carrier field if enabled
+                if ($lsoConfig.showCarrier -eq $true) {
+                    $carrierField = [PSCustomObject]@{
+                        name = "**Carrier**"
+                        value = $Carrier
+                        inline = $true
+                    }
+                    $fields = $hookEmbedObject.fields
+                    $hookEmbedObject.fields = $fields[0], $carrierField + @($fields[1..($fields.count-1)])
                 }
 
                 #Add embed object to array
